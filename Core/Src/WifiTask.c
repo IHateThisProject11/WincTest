@@ -9,10 +9,5 @@ void WifiTask(void *argument)
     //    this will call m2m_wifi_init() under the hood.
     WifiApp_InitAP();    // or WifiApp_InitSTA()
 
-    // 2) Enter the driver event loop
-    for (;;)
-    {
-        m2m_wifi_handle_events(NULL);
-        osDelay(1);      // yield for 1 ms
-    }
+
 }
