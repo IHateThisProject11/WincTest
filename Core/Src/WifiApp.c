@@ -5,6 +5,7 @@
 #include "bsp/include/nm_bsp_stm32h5.h"
 #include <string.h>
 #include <stdio.h>
+#include "m2m_wifi.h"
 
 
 

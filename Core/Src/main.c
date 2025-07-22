@@ -147,16 +147,8 @@ int main(void)
 	      if (HAL_GetTick() - t_last >= 10)
 	      {
 	        t_last += 10;
-    /* -- Sample board code for User push-button in interrupt mode ---- */
-    if (BspButtonState == BUTTON_PRESSED)
-    {
-      /* Update button state */
-      BspButtonState = BUTTON_RELEASED;
-      /* -- Sample board code to toggle led ---- */
-      BSP_LED_Toggle(LED_GREEN);
 
-      /* ..... Perform your action ..... */
-    }
+	      }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

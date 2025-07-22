@@ -14,7 +14,8 @@ extern "C" {
 
 /* WINC1500 types & APIs */
 #include "driver/include/m2m_types.h"
-#include "driver/include/m2m_wifi.h"
+//#include "driver/include/m2m_wifi.h"
+#include "m2m_wifi.h"
 
 /* === IRQ pin alias === */
 #define IRQ_WINC_Pin    IRQ_WINC_PIN_Pin   /* CubeMX name */
