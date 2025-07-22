@@ -104,6 +104,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ICACHE_Init();
   /* USER CODE BEGIN 2 */
+  WifiTask(NULL);   // start the bare-metal Wi-Fi loop
+  uint32_t t_last = HAL_GetTick();  // “last” timestamp in ms
 
   /* USER CODE END 2 */
 
@@ -139,6 +141,12 @@ int main(void)
   while (1)
   {
 
+	  m2m_wifi_handle_events(NULL);       // pumps WINC driver
+
+	      /* crude 10-ms “tick” without an RTOS */
+	      if (HAL_GetTick() - t_last >= 10)
+	      {
+	        t_last += 10;
     /* -- Sample board code for User push-button in interrupt mode ---- */
     if (BspButtonState == BUTTON_PRESSED)
     {

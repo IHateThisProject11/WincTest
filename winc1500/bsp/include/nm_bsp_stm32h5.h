@@ -46,7 +46,7 @@
 #include "config/conf_winc.h"
 #include "math.h"
 
-#define NM_EDGE_INTERRUPT		(1)
+//#define NM_EDGE_INTERRUPT		(1)
 
 #ifndef NM_DEBUG
   #define NM_DEBUG    CONF_WINC_DEBUG
