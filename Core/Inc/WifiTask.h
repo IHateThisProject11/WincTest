@@ -1,7 +1,26 @@
-#ifndef WIFI_TASK_H
-#define WIFI_TASK_H
+// WifiTask.h
 
+#ifndef WIFITASK_H
+#define WIFITASK_H
 
-void WifiTask(void *argument);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#endif // WIFI_TASK_H
+/**
+ * @brief  One-time initialization of the WINC1500 driver and AP connection.
+ *         Must be called once before entering the main loop.
+ */
+void WifiTask_Init(void);
+
+/**
+ * @brief  Call as often as possible from the super-loop to service the
+ *         WINC1500 driver state machine.
+ */
+void WifiTask_Tick(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // WIFITASK_H

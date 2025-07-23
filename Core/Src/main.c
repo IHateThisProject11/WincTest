@@ -23,6 +23,8 @@
 /* USER CODE BEGIN Includes */
 #include "WifiApp.h"
 #include "WifiTask.h"
+#include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,8 +61,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
-static void MX_USART2_UART_Init(void);
 static void MX_ICACHE_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -101,10 +103,9 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_SPI2_Init();
-  MX_USART2_UART_Init();
   MX_ICACHE_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  WifiTask(NULL);   // start the bare-metal Wi-Fi loop
   uint32_t t_last = HAL_GetTick();  // “last” timestamp in ms
 
   /* USER CODE END 2 */
@@ -140,15 +141,23 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  printf("Booting…\r\n");
 
-	  m2m_wifi_handle_events(NULL);       // pumps WINC driver
+	      WifiTask_Init();             // runs once and returns
+		  printf("Booted\r\n");
 
-	      /* crude 10-ms “tick” without an RTOS */
-	      if (HAL_GetTick() - t_last >= 10)
+	      uint32_t t_last = HAL_GetTick();
+	      while (1)
 	      {
-	        t_last += 10;
+	          WifiTask_Tick();         // pumps WINC state machine
 
+	          if ((HAL_GetTick() - t_last) >= 10U)
+	          {
+	              t_last += 10U;
+	              // your periodic work here
+	          }
 	      }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -358,7 +367,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 9600;
+  huart2.Init.BaudRate = 115200;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;

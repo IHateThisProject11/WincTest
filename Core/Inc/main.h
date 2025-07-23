@@ -74,10 +74,6 @@ void Error_Handler(void);
 #define CHIP_EN_WINC_GPIO_Port GPIOB
 #define SDCARD_SCK_Pin GPIO_PIN_10
 #define SDCARD_SCK_GPIO_Port GPIOB
-#define DISPLAY_RX_Pin GPIO_PIN_7
-#define DISPLAY_RX_GPIO_Port GPIOC
-#define DISPLAY_TX_Pin GPIO_PIN_8
-#define DISPLAY_TX_GPIO_Port GPIOA
 #define SDCARD_CS_Pin GPIO_PIN_8
 #define SDCARD_CS_GPIO_Port GPIOB
 
