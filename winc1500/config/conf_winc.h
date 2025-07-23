@@ -87,5 +87,9 @@
 #else
   #define CONF_WINC_PRINTF(...)
 #endif
+// map NM_DEBUG → CONF_WINC_DEBUG so the driver’s nm_debug.h sees it
+#define CONF_WINC_DEBUG    NM_DEBUG
+#undef M2M_LOG_LEVEL
+#define M2M_LOG_LEVEL    M2M_LOG_DBG
 
 #endif /* CONF_WINC_H_ */
