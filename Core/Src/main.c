@@ -59,7 +59,7 @@ UART_HandleTypeDef huart2;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_SPI1_Init(void);
+//static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_ICACHE_Init(void);
 static void MX_USART2_UART_Init(void);
@@ -101,12 +101,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI1_Init();
+  //MX_SPI1_Init();
   MX_SPI2_Init();
   MX_ICACHE_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  uint32_t t_last = HAL_GetTick();  // “last” timestamp in ms
 
   /* USER CODE END 2 */
 
@@ -260,6 +259,7 @@ static void MX_ICACHE_Init(void)
   * @param None
   * @retval None
   */
+#if 0
 static void MX_SPI1_Init(void)
 {
 
@@ -302,7 +302,7 @@ static void MX_SPI1_Init(void)
   /* USER CODE END SPI1_Init 2 */
 
 }
-
+#endif
 /**
   * @brief SPI2 Initialization Function
   * @param None
@@ -420,7 +420,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, RESET_WINC_Pin|CHIP_EN_WINC_Pin|SDCARD_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, RESET_WINC_Pin|SDCARD_CS_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
