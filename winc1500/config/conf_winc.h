@@ -36,14 +36,13 @@
                                                   CONF_WINC_SPI_CS_PIN, GPIO_PIN_SET)
 
 /* SCK / MISO / MOSI --------------------------------------------------------*/
-//#define CONF_WINC_SPI_SCK_PORT   GPIOA      /* PA5 now */
-//#define CONF_WINC_SPI_SCK_PIN    GPIO_PIN_5
-//
-///* leave the others unchanged */
-//#define CONF_WINC_SPI_MISO_PORT  GPIOA      /* PA6 */
-//#define CONF_WINC_SPI_MISO_PIN   GPIO_PIN_6
-//#define CONF_WINC_SPI_MOSI_PORT  GPIOA      /* PA7 */
-//#define CONF_WINC_SPI_MOSI_PIN   GPIO_PIN_7
+#define CONF_WINC_SPI_SCK_PORT   GPIOA      /* PA5 now */
+#define CONF_WINC_SPI_SCK_PIN    GPIO_PIN_5
+
+#define CONF_WINC_SPI_MISO_PORT  GPIOA      /* PA6 */
+#define CONF_WINC_SPI_MISO_PIN   GPIO_PIN_6
+#define CONF_WINC_SPI_MOSI_PORT  GPIOA      /* PA7 */
+#define CONF_WINC_SPI_MOSI_PIN   GPIO_PIN_7
 
 /* RESET_N & CHIP_EN -------------------------------------------------------- */
 #define CONF_WINC_RESET_PORT        GPIOB

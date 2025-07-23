@@ -57,7 +57,7 @@
 #define NM_BUS_MAX_TRX_SZ	256
 
 /* Declare STM32 SPIx communication handler variable to winc1500 */
-SPI_HandleTypeDef hspiWifi;
+SPI_HandleTypeDef hspi;
 
 /* spi_rw variables */
 static uint8 spiDummyBuf[300] = {0};
@@ -121,7 +121,7 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
 	while (u16Sz) {
 		txd_data = *pu8Mosi;
 		//printf("\nsend %d",txd_data);
-		HAL_SPI_TransmitReceive(&hspiWifi,&txd_data,&rxd_data,1,1000);
+		HAL_SPI_TransmitReceive(&hspi,&txd_data,&rxd_data,1,1000);
 		//HAL_SPI_Transmit(&hspi1,&txd_data,1,1000);
 		//HAL_SPI_Receive(&hspi1,&rxd_data,1,1000);
 //		while (!spi_is_ready_to_write(&master))
@@ -165,16 +165,16 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
     /* Transmit/Recieve */
     if (pu8Mosi == NULL)
 	{
-		status = HAL_SPI_TransmitReceive(&hspiWifi,spiDummyBuf,pu8Miso,u16Sz,1000);
+		status = HAL_SPI_TransmitReceive(&hspi,spiDummyBuf,pu8Miso,u16Sz,1000);
     }
     else if(pu8Miso == NULL)
     {
-        status = HAL_SPI_TransmitReceive(&hspiWifi,pu8Mosi,spiDummyBuf,u16Sz,1000);
+        status = HAL_SPI_TransmitReceive(&hspi,pu8Mosi,spiDummyBuf,u16Sz,1000);
         memset(spiDummyBuf,0, u16Sz);
     }
     else
     {     
-        status = HAL_SPI_TransmitReceive(&hspiWifi,pu8Mosi,pu8Miso,u16Sz,1000);
+        status = HAL_SPI_TransmitReceive(&hspi,pu8Mosi,pu8Miso,u16Sz,1000);
     } 
     
     /* Handle Transmit/Recieve error */
@@ -241,26 +241,26 @@ sint8 nm_bus_init(void *pvinit)
 
 	 /* WiFi SPI init function - called from nm_bus_init() */
 
-	hspiWifi.Instance			   = SPI_WIFI;
-	hspiWifi.Init.Mode			   = SPI_MODE_MASTER;
-	hspiWifi.Init.Direction 	   = SPI_DIRECTION_2LINES;
-	hspiWifi.Init.DataSize		   = SPI_DATASIZE_8BIT;
-	hspiWifi.Init.CLKPolarity	   = SPI_POLARITY_LOW;
-	hspiWifi.Init.CLKPhase		   = SPI_PHASE_1EDGE;
-	hspiWifi.Init.NSS			   = SPI_NSS_SOFT;
-	hspiWifi.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
-	hspiWifi.Init.FirstBit		   = SPI_FIRSTBIT_MSB;
-	hspiWifi.Init.TIMode		   = SPI_TIMODE_DISABLE;
-	hspiWifi.Init.CRCCalculation   = SPI_CRCCALCULATION_DISABLE;
-	hspiWifi.Init.CRCPolynomial    = 10;
-//	  hspiWifi.Init.CRCLength		 = SPI_CRC_LENGTH_DATASIZE;
-//	  hspiWifi.Init.NSSPMode		 = SPI_NSS_PULSE_DISABLE;
-	if (HAL_SPI_Init(&hspiWifi) != HAL_OK)
+	hspi.Instance			   = SPI_WIFI;
+	hspi.Init.Mode			   = SPI_MODE_MASTER;
+	hspi.Init.Direction 	   = SPI_DIRECTION_2LINES;
+	hspi.Init.DataSize		   = SPI_DATASIZE_8BIT;
+	hspi.Init.CLKPolarity	   = SPI_POLARITY_LOW;
+	hspi.Init.CLKPhase		   = SPI_PHASE_1EDGE;
+	hspi.Init.NSS			   = SPI_NSS_SOFT;
+	hspi.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
+	hspi.Init.FirstBit		   = SPI_FIRSTBIT_MSB;
+	hspi.Init.TIMode		   = SPI_TIMODE_DISABLE;
+	hspi.Init.CRCCalculation   = SPI_CRCCALCULATION_DISABLE;
+	hspi.Init.CRCPolynomial    = 10;
+//	  hspi.Init.CRCLength		 = SPI_CRC_LENGTH_DATASIZE;
+//	  hspi.Init.NSSPMode		 = SPI_NSS_PULSE_DISABLE;
+	if (HAL_SPI_Init(&hspi) != HAL_OK)
 	{
 		M2M_ERR("SPI bus Initialization error\r\n");
 	}
 
-	HAL_SPI_MspInit(&hspiWifi);
+	HAL_SPI_MspInit(&hspi);
 	return result;
 }
 

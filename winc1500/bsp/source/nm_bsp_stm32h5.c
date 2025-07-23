@@ -175,7 +175,10 @@ void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
     GPIO_InitStruct.Pin   = CONF_WINC_SPI_INT_PIN;
     GPIO_InitStruct.Mode  = GPIO_MODE_IT_FALLING;
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    HAL_GPIO_Init(CONF_WINC_SPI_INT_PORT, &GPIO_InitStruct);
+    HAL_NVIC_SetPriority(CONF_WINC_EXTI_IRQN, 1, 0);
+    HAL_NVIC_EnableIRQ(CONF_WINC_EXTI_IRQN);
+
 
     /* EXTI 2 (PA2) interrupt init*/
     HAL_NVIC_SetPriority(CONF_WINC_EXTI_IRQN, 0x00, 0);
