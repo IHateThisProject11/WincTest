@@ -64,6 +64,12 @@ void Error_Handler(void);
 #define SDCARD_MOSI_GPIO_Port GPIOC
 #define SDCARD_MISO_Pin GPIO_PIN_2
 #define SDCARD_MISO_GPIO_Port GPIOC
+#define WINK_SCK_Pin GPIO_PIN_5
+#define WINK_SCK_GPIO_Port GPIOA
+#define WINC_MISO_Pin GPIO_PIN_6
+#define WINC_MISO_GPIO_Port GPIOA
+#define WINC_MOSI_Pin GPIO_PIN_7
+#define WINC_MOSI_GPIO_Port GPIOA
 #define IRQ_WINC_PIN_Pin GPIO_PIN_4
 #define IRQ_WINC_PIN_GPIO_Port GPIOC
 #define CS_WINC_Pin GPIO_PIN_5
