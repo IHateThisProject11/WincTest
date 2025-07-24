@@ -27,6 +27,9 @@
 #include <stdio.h>
 #include "core_cm33.h"          /* gives ITM_SendChar                */
 #include "nm_debug.h"
+#include "m2m_ota.h"               // the Atmel OTA API
+
+
 
 
 /* USER CODE END Includes */
@@ -143,6 +146,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+
+
 	  printf("Booting...\r\n");
 
 	      WifiTask_Init();             // runs once and returns
