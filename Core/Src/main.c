@@ -26,6 +26,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "core_cm33.h"          /* gives ITM_SendChar                */
+#include "nm_debug.h"
+
 
 /* USER CODE END Includes */
 
@@ -97,6 +99,8 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
   ITM_Init();
+  M2M_ERR("TEST: nm_debug route OK\r\n");
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -139,7 +143,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  printf("Booting…\r\n");
+	  printf("Booting...\r\n");
 
 	      WifiTask_Init();             // runs once and returns
 		  printf("Booted\r\n");
@@ -415,14 +419,34 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-/* main.c – very early, after SystemClock_Config() */
+/* ------------------------------------------------------------------ */
+/*  ITM / SWO bring-up for NUCLEO-H503RB                              */
+/*  Call once, right after SystemClock_Config()                       */
+/* ------------------------------------------------------------------ */
 static void ITM_Init(void)
 {
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;   /* enable tracing   */
-    ITM->LAR = 0xC5ACCE55;                            /* unlock           */
+    /* 1. Configure PB3 as TRACESWO -------------------------------------- */
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin       = GPIO_PIN_3;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull      = GPIO_NOPULL;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF0_SWJ;   /* << correct AF for SWO */
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* 2. Enable asynchronous SWO in DBGMCU ------------------------------ */
+    DBGMCU->CR |= DBGMCU_CR_TRACE_IOEN;         /* trace pins on         */
+    DBGMCU->CR &= ~DBGMCU_CR_TRACE_MODE;        /* 00 = async SWO        */
+
+    /* 3. Turn on the ITM itself ----------------------------------------- */
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    ITM->LAR = 0xC5ACCE55;
     ITM->TCR = ITM_TCR_ITMENA_Msk | ITM_TCR_SWOENA_Msk;
-    ITM->TER = 0x1;                                   /* enable port 0    */
+    ITM->TER = 0x1;                             /* stimulus port 0       */
 }
+
 
 /* USER CODE END 4 */
 
