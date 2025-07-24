@@ -29,7 +29,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/times.h>
-
+#include "main.h"          // brings in stm32h5xx_hal.h ➜ stm32h503xx.h ➜ core_cm33.h
 
 /* Variables */
 extern int __io_putchar(int ch) __attribute__((weak));
@@ -41,6 +41,20 @@ char **environ = __env;
 
 
 /* Functions */
+/* syscalls.c ------------------------------------------------------------*/
+int _write(int file, char *ptr, int len)
+{
+    (void)file;                    // unused
+    for (int i = 0; i < len; i++)
+        ITM_SendChar(ptr[i]);      // from core_cm33.h, now safely defined
+    return len;
+}
+int __io_putchar(int ch)        /* overrides the weak symbol CubeIDE generated */
+{
+    ITM_SendChar((uint32_t)ch); /* send to stimulus port 0           */
+    return ch;
+}
+
 void initialise_monitor_handles()
 {
 }
@@ -77,17 +91,17 @@ __attribute__((weak)) int _read(int file, char *ptr, int len)
   return len;
 }
 
-__attribute__((weak)) int _write(int file, char *ptr, int len)
-{
-  (void)file;
-  int DataIdx;
-
-  for (DataIdx = 0; DataIdx < len; DataIdx++)
-  {
-    __io_putchar(*ptr++);
-  }
-  return len;
-}
+//__attribute__((weak)) int _write(int file, char *ptr, int len)
+//{
+//  (void)file;
+//  int DataIdx;
+//
+//  for (DataIdx = 0; DataIdx < len; DataIdx++)
+//  {
+//    __io_putchar(*ptr++);
+//  }
+//  return len;
+//}
 
 int _close(int file)
 {

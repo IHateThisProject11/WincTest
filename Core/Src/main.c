@@ -25,6 +25,8 @@
 #include "WifiTask.h"
 #include <string.h>
 #include <stdio.h>
+#include "core_cm33.h"          /* gives ITM_SendChar                */
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,6 +68,7 @@ static void MX_ICACHE_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void ITM_Init(void);
 
 /* USER CODE END 0 */
 
@@ -93,7 +96,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  ITM_Init();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -406,18 +409,20 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
+/* main.c – very early, after SystemClock_Config() */
+static void ITM_Init(void)
+{
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;   /* enable tracing   */
+    ITM->LAR = 0xC5ACCE55;                            /* unlock           */
+    ITM->TCR = ITM_TCR_ITMENA_Msk | ITM_TCR_SWOENA_Msk;
+    ITM->TER = 0x1;                                   /* enable port 0    */
+}
 
 /* USER CODE END 4 */
 
