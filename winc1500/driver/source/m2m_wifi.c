@@ -36,15 +36,7 @@
 #include "driver/source/m2m_hif.h"
 #include "driver/source/nmasic.h"
 #include <string.h>
-#include <stdlib.h>
 
-
-/**
- * \defgroup winc1500_group WINC1500 (Wi-Fi)
- *
- * \{
- */
- 
 /* Require authentication of server. */
 #define WIFI_1X_TLS_HS_FLAGS_PEER_AUTH          NBIT1
 /* Enable expiry checking of server certificate chain. */
@@ -75,9 +67,9 @@ static uint32   gu321xTlsHsFlags      = WIFI_1X_TLS_HS_FLAGS_DEFAULT;
 static uint8    gau81xRootSha1[20]    = {0};
 
 #ifdef ETH_MODE
-static tpfAppEthCb  gpfAppEthCb  = NULL;
-static uint8* 	        gau8ethRcvBuf=NULL;
-static uint16 	        gu16ethRcvBufSize ;
+static tpfAppEthCb  gpfAppEthCb   = NULL;
+static uint8       *gau8ethRcvBuf = NULL;
+static uint16       gu16ethRcvBufSize;
 #endif
 
 /**
@@ -94,36 +86,36 @@ static uint16 	        gu16ethRcvBufSize ;
 */
 static void m2m_wifi_cb(uint8 u8OpCode, uint16 u16DataSize, uint32 u32Addr)
 {
-	uint8 rx_buf[8];
-	if (u8OpCode == M2M_WIFI_RESP_CON_STATE_CHANGED)
-	{
-		tstrM2mWifiStateChanged strState;
-		if (hif_receive(u32Addr, (uint8*) &strState,sizeof(tstrM2mWifiStateChanged), 0) == M2M_SUCCESS)
-		{
-			if (gpfAppWifiCb)
-				gpfAppWifiCb(M2M_WIFI_RESP_CON_STATE_CHANGED, &strState);
-		}
-	}
-	else if (u8OpCode == M2M_WIFI_RESP_GET_SYS_TIME)
-	{
-		tstrSystemTime strSysTime;
-		if (hif_receive(u32Addr, (uint8*) &strSysTime,sizeof(tstrSystemTime), 0) == M2M_SUCCESS)
-		{
-			if (gpfAppWifiCb)
-				gpfAppWifiCb(M2M_WIFI_RESP_GET_SYS_TIME, &strSysTime);
-		}
-	}
-	else if(u8OpCode == M2M_WIFI_RESP_CONN_INFO)
-	{
-		tstrM2MConnInfo		strConnInfo;
-		if(hif_receive(u32Addr, (uint8*)&strConnInfo, sizeof(tstrM2MConnInfo), 1) == M2M_SUCCESS)
-		{
-			if(gpfAppWifiCb)
-				gpfAppWifiCb(M2M_WIFI_RESP_CONN_INFO, &strConnInfo);
-		}
-	}
-	else if (u8OpCode == M2M_WIFI_RESP_MEMORY_RECOVER)
-	{
+    uint8 rx_buf[8];
+    if(u8OpCode == M2M_WIFI_RESP_CON_STATE_CHANGED)
+    {
+        tstrM2mWifiStateChanged strState;
+        if(hif_receive(u32Addr, (uint8 *) &strState, sizeof(tstrM2mWifiStateChanged), 0) == M2M_SUCCESS)
+        {
+            if(gpfAppWifiCb)
+                gpfAppWifiCb(M2M_WIFI_RESP_CON_STATE_CHANGED, &strState);
+        }
+    }
+    else if(u8OpCode == M2M_WIFI_RESP_GET_SYS_TIME)
+    {
+        tstrSystemTime strSysTime;
+        if(hif_receive(u32Addr, (uint8 *) &strSysTime, sizeof(tstrSystemTime), 0) == M2M_SUCCESS)
+        {
+            if(gpfAppWifiCb)
+                gpfAppWifiCb(M2M_WIFI_RESP_GET_SYS_TIME, &strSysTime);
+        }
+    }
+    else if(u8OpCode == M2M_WIFI_RESP_CONN_INFO)
+    {
+        tstrM2MConnInfo     strConnInfo;
+        if(hif_receive(u32Addr, (uint8 *)&strConnInfo, sizeof(tstrM2MConnInfo), 1) == M2M_SUCCESS)
+        {
+            if(gpfAppWifiCb)
+                gpfAppWifiCb(M2M_WIFI_RESP_CONN_INFO, &strConnInfo);
+        }
+    }
+    else if(u8OpCode == M2M_WIFI_RESP_MEMORY_RECOVER)
+    {
 #if 0
         if(hif_receive(u32Addr, rx_buf, 4, 1) == M2M_SUCCESS)
         {
@@ -1896,8 +1888,14 @@ sint8 m2m_wifi_prng_get_random_bytes(uint8 *pu8PrngBuff, uint16 u16PrngSize)
 
 @param [in] pstrConfAutoRate
     The Auto rate configuration parameters as listed in tstrConfAutoRate.
+
+@warning
+    The application will be responsible for keeping track of what values are set and, if required,
+    going back to default values. Changes will become permanent until the chip is power-cycled.
+
 @sa
     tstrConfAutoRate
+
 @return
     The function SHALL return 0 for success and a negative value otherwise.
 */

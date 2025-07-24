@@ -33,10 +33,10 @@
  */
 
 /** @defgroup COMMON Common
-@{
-    @defgroup COMMONDEF Defines
-    @defgroup COMMONAPI Functions
-@}
+    @{
+        @defgroup COMMONDEF Defines
+        @defgroup COMMONAPI Functions
+    @}
  */
 
 #ifndef _NM_COMMON_H_
@@ -51,21 +51,22 @@
 #define M2M_TIME_OUT_DELAY          10000
 
 /*states*/
-#define M2M_SUCCESS         ((sint8)0)
-#define M2M_ERR_SEND		((sint8)-1)
-#define M2M_ERR_RCV			((sint8)-2)
-#define M2M_ERR_MEM_ALLOC	((sint8)-3)
-#define M2M_ERR_TIME_OUT	((sint8)-4)
-#define M2M_ERR_INIT        ((sint8)-5)
-#define M2M_ERR_BUS_FAIL    ((sint8)-6)
-#define M2M_NOT_YET			((sint8)-7)
-#define M2M_ERR_FIRMWARE	((sint8)-8)
-#define M2M_SPI_FAIL		((sint8)-9)
-#define M2M_ERR_FIRMWARE_bURN	 ((sint8)-10)
-#define M2M_ACK				((sint8)-11)
-#define M2M_ERR_FAIL		((sint8)-12)
-#define M2M_ERR_FW_VER_MISMATCH         ((sint8)-13)
-#define M2M_ERR_SCAN_IN_PROGRESS         ((sint8)-14)
+#define M2M_SUCCESS                 ((sint8)0)
+#define M2M_ERR_SEND                ((sint8)-1)
+#define M2M_ERR_RCV                 ((sint8)-2)
+#define M2M_ERR_MEM_ALLOC           ((sint8)-3)
+#define M2M_ERR_TIME_OUT            ((sint8)-4)
+#define M2M_ERR_INIT                ((sint8)-5)
+#define M2M_ERR_BUS_FAIL            ((sint8)-6)
+#define M2M_NOT_YET                 ((sint8)-7)
+#define M2M_ERR_FIRMWARE            ((sint8)-8)
+#define M2M_SPI_FAIL                ((sint8)-9)
+#define M2M_ERR_FIRMWARE_bURN       ((sint8)-10)
+#define M2M_ACK                     ((sint8)-11)
+#define M2M_ERR_FAIL                ((sint8)-12)
+#define M2M_ERR_FW_VER_MISMATCH     ((sint8)-13)
+#define M2M_ERR_SCAN_IN_PROGRESS    ((sint8)-14)
+
 /* Invalid argument */
 #define M2M_ERR_INVALID_ARG         ((sint8)-15)
 #define M2M_ERR_INVALID             ((sint8)-16)
@@ -121,7 +122,7 @@
 /*! Align to next multiple of 4 */
 #define WORD_ALIGN(val)             (((val) & 0x03) ? ((val) + 4 - ((val) & 0x03)) : (val))
 
-#define DATA_PKT_OFFSET	4
+#define DATA_PKT_OFFSET             4
 
 #if _BYTE_ORDER == _LITTLE_ENDIAN
 /*! Most significant byte of 32bit word (LE) */
@@ -160,8 +161,7 @@ extern "C" {
  *                  Destination buffer.
  * @return      None
  */
-//NMI_API void m2m_memcpy(uint8 *pDst, uint8 *pSrc, uint32 sz);
-NMI_API void m2m_memcpy(uint8 *pDst,  uint8 *pSrc, uint32 sz);
+NMI_API void m2m_memcpy(uint8 *pDst, uint8 *pSrc, uint32 sz);
 
 /*!
  * @ingroup     COMMONAPI
@@ -258,7 +258,7 @@ sint8 hexstr_2_bytes(uint8 *pu8Out, uint8 *pu8In, uint8 u8SizeOut);
  * @fn          void (*at_sb_printf)(const char *_format, ...);
  * @brief       Chooses which function to use in order to output debug.
  */
-extern NMI_API void (*at_sb_printf)(const char *_format, ...);
+NMI_API void (*at_sb_printf)(const char *_format, ...);
 #ifdef __cplusplus
 }
 #endif

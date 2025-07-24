@@ -32,8 +32,6 @@
  *
  */
 
-
-
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
 INCLUDES
 *=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
@@ -47,11 +45,12 @@ INCLUDES
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
 MACROS
 *=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
+
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
 DATA TYPES
 *=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 static tpfOtaUpdateCb gpfOtaUpdateCb = NULL;
-static tpfOtaNotifCb  gpfOtaNotifCb = NULL;
+static tpfOtaNotifCb  gpfOtaNotifCb  = NULL;
 static tpfFileGetCb   gpfHFDGetCb    = NULL;
 static tpfFileReadCb  gpfHFDReadCb   = NULL;
 static tpfFileEraseCb gpfHFDEraseCb  = NULL;
@@ -59,13 +58,21 @@ static tpfFileEraseCb gpfHFDEraseCb  = NULL;
 typedef struct {
     uint32 u32Offset;
     uint32 u32Size;
-}FileBlockDescriptor;
+} FileBlockDescriptor;
 
 static FileBlockDescriptor FileBlock;
 
+static bool   gbFileValid           = 0;
 static uint8  gu8CurrFileHandlerID  = HFD_INVALID_HANDLER;
+static uint8    gu8OTASSLOpts      = 0;
+static uint8     gu8SNIServerName[64] = {0};
 
-/*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
+/* Map OTA SSL flags to SSL socket options */
+#define WIFI_OTA_SSL_FLAG_BYPASS_SERVER_AUTH	NBIT1
+#define WIFI_OTA_SSL_FLAG_SNI_VALIDATION		NBIT6
+
+/*=*=*=*=*=*=*=*=*=*=*=*=
+*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
 FUNCTION PROTOTYPES
 *=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
@@ -81,33 +88,33 @@ FUNCTION PROTOTYPES
 */
 static void m2m_ota_cb(uint8 u8OpCode, uint16 u16DataSize, uint32 u32Addr)
 {
-	sint8 s8Ret = M2M_SUCCESS;
-	if(u8OpCode == M2M_OTA_RESP_NOTIF_UPDATE_INFO)
-	{
-		tstrOtaUpdateInfo strOtaUpdateInfo;
-		m2m_memset((uint8*)&strOtaUpdateInfo,0,sizeof(tstrOtaUpdateInfo));
-		s8Ret = hif_receive(u32Addr,(uint8*)&strOtaUpdateInfo,sizeof(tstrOtaUpdateInfo),0);
-		if(s8Ret == M2M_SUCCESS)
-		{
-			if(gpfOtaNotifCb)
-				gpfOtaNotifCb(&strOtaUpdateInfo);
-		}
-	}
-	else if (u8OpCode == M2M_OTA_RESP_UPDATE_STATUS)
-	{
-		tstrOtaUpdateStatusResp strOtaUpdateStatusResp;
-		m2m_memset((uint8*)&strOtaUpdateStatusResp,0,sizeof(tstrOtaUpdateStatusResp));
-		s8Ret = hif_receive(u32Addr, (uint8*) &strOtaUpdateStatusResp,sizeof(tstrOtaUpdateStatusResp), 0);
-		if(s8Ret == M2M_SUCCESS)
-		{
-			if(gpfOtaUpdateCb)
-				gpfOtaUpdateCb(strOtaUpdateStatusResp.u8OtaUpdateStatusType,strOtaUpdateStatusResp.u8OtaUpdateStatus);
-		}
-	}
-    else if (u8OpCode == M2M_OTA_RESP_HOST_FILE_STATUS)
+    sint8 s8Ret = M2M_SUCCESS;
+    if(u8OpCode == M2M_OTA_RESP_NOTIF_UPDATE_INFO)
+    {
+        tstrOtaUpdateInfo strOtaUpdateInfo;
+        m2m_memset((uint8 *)&strOtaUpdateInfo, 0, sizeof(tstrOtaUpdateInfo));
+        s8Ret = hif_receive(u32Addr, (uint8 *)&strOtaUpdateInfo, sizeof(tstrOtaUpdateInfo), 0);
+        if(s8Ret == M2M_SUCCESS)
+        {
+            if(gpfOtaNotifCb)
+                gpfOtaNotifCb(&strOtaUpdateInfo);
+        }
+    }
+    else if(u8OpCode == M2M_OTA_RESP_UPDATE_STATUS)
+    {
+        tstrOtaUpdateStatusResp strOtaUpdateStatusResp;
+        m2m_memset((uint8 *)&strOtaUpdateStatusResp, 0, sizeof(tstrOtaUpdateStatusResp));
+        s8Ret = hif_receive(u32Addr, (uint8 *) &strOtaUpdateStatusResp, sizeof(tstrOtaUpdateStatusResp), 0);
+        if(s8Ret == M2M_SUCCESS)
+        {
+            if(gpfOtaUpdateCb)
+                gpfOtaUpdateCb(strOtaUpdateStatusResp.u8OtaUpdateStatusType, strOtaUpdateStatusResp.u8OtaUpdateStatus);
+        }
+    }
+    else if(u8OpCode == M2M_OTA_RESP_HOST_FILE_STATUS)
     {
         tstrOtaHostFileGetStatusResp strOtaHostFileGetStatusResp = {0};
-        s8Ret = hif_receive(u32Addr, (uint8*)&strOtaHostFileGetStatusResp, sizeof(tstrOtaHostFileGetStatusResp), 1);
+        s8Ret = hif_receive(u32Addr, (uint8 *)&strOtaHostFileGetStatusResp, sizeof(tstrOtaHostFileGetStatusResp), 1);
         if(M2M_SUCCESS == s8Ret)
         {
             if(strOtaHostFileGetStatusResp.u8OtaFileGetStatus == OTA_STATUS_SUCCESS) {
@@ -115,10 +122,10 @@ static void m2m_ota_cb(uint8 u8OpCode, uint16 u16DataSize, uint32 u32Addr)
             }
         }
     }
-    else if (u8OpCode == M2M_OTA_RESP_HOST_FILE_DOWNLOAD)
+    else if(u8OpCode == M2M_OTA_RESP_HOST_FILE_DOWNLOAD)
     {
         tstrOtaHostFileGetStatusResp strOtaHostFileGetStatusResp = {0};
-        s8Ret = hif_receive(u32Addr, (uint8*)&strOtaHostFileGetStatusResp, sizeof(tstrOtaHostFileGetStatusResp), 1);
+        s8Ret = hif_receive(u32Addr, (uint8 *)&strOtaHostFileGetStatusResp, sizeof(tstrOtaHostFileGetStatusResp), 1);
         if(M2M_SUCCESS == s8Ret)
         {
             if(strOtaHostFileGetStatusResp.u8OtaFileGetStatus == OTA_STATUS_SUCCESS) {
@@ -132,11 +139,11 @@ static void m2m_ota_cb(uint8 u8OpCode, uint16 u16DataSize, uint32 u32Addr)
             }
         }
     }
-    else if (u8OpCode == M2M_OTA_RESP_HOST_FILE_READ)
+    else if(u8OpCode == M2M_OTA_RESP_HOST_FILE_READ)
     {
         tstrOtaHostFileReadStatusResp strOtaHostFileReadStatusResp;
-        m2m_memset((uint8*)&strOtaHostFileReadStatusResp, 0, sizeof(tstrOtaHostFileReadStatusResp));
-        s8Ret = hif_receive(u32Addr, (uint8*)&strOtaHostFileReadStatusResp, sizeof(tstrOtaHostFileReadStatusResp), 1);
+        m2m_memset((uint8 *)&strOtaHostFileReadStatusResp, 0, sizeof(tstrOtaHostFileReadStatusResp));
+        s8Ret = hif_receive(u32Addr, (uint8 *)&strOtaHostFileReadStatusResp, sizeof(tstrOtaHostFileReadStatusResp), 1);
         if(M2M_SUCCESS == s8Ret)
             if(gpfHFDReadCb)
                 gpfHFDReadCb(strOtaHostFileReadStatusResp.u8OtaFileReadStatus, strOtaHostFileReadStatusResp.pFileBuf, strOtaHostFileReadStatusResp.u16FileBlockSz);
@@ -144,7 +151,7 @@ static void m2m_ota_cb(uint8 u8OpCode, uint16 u16DataSize, uint32 u32Addr)
     else if(u8OpCode == M2M_OTA_RESP_HOST_FILE_ERASE)
     {
         tstrOtaHostFileEraseStatusResp strOtaHostFileEraseStatusResp = {0};
-        s8Ret = hif_receive(u32Addr, (uint8*)&strOtaHostFileEraseStatusResp, sizeof(tstrOtaHostFileEraseStatusResp), 1);
+        s8Ret = hif_receive(u32Addr, (uint8 *)&strOtaHostFileEraseStatusResp, sizeof(tstrOtaHostFileEraseStatusResp), 1);
         if(M2M_SUCCESS == s8Ret)
         {
             if(gpfHFDEraseCb)
@@ -154,11 +161,12 @@ static void m2m_ota_cb(uint8 u8OpCode, uint16 u16DataSize, uint32 u32Addr)
             }
         }
     }
-	else
-	{
-		M2M_ERR("Invalid OTA resp %d ?\n",u8OpCode);
-	}
+    else
+    {
+        M2M_ERR("Invalid OTA resp %d ?\n", u8OpCode);
+    }
 }
+
 /*!
 @fn         NMI_API sint8  m2m_ota_init(tpfOtaUpdateCb pfOtaUpdateCb, tpfOtaNotifCb pfOtaNotifCb)
 @brief      Initialize the OTA layer.
@@ -170,24 +178,24 @@ static void m2m_ota_cb(uint8 u8OpCode, uint16 u16DataSize, uint32 u32Addr)
 */
 NMI_API sint8  m2m_ota_init(tpfOtaUpdateCb pfOtaUpdateCb, tpfOtaNotifCb pfOtaNotifCb)
 {
-	sint8 ret = M2M_SUCCESS;
+    sint8 ret = M2M_SUCCESS;
+    if(pfOtaUpdateCb) {
+        gpfOtaUpdateCb = pfOtaUpdateCb;
+    } else {
+        M2M_ERR("Invalid Ota update cb\n");
+    }
+    if(pfOtaNotifCb) {
+        gpfOtaNotifCb = pfOtaNotifCb;
+    } else {
+        M2M_ERR("Invalid Ota notify cb\n");
+    }
 
-	if(pfOtaUpdateCb){
-		gpfOtaUpdateCb = pfOtaUpdateCb;
-	}else{
-		M2M_ERR("Invalid Ota update cb\n");
-	}
-	if(pfOtaNotifCb){
-		gpfOtaNotifCb = pfOtaNotifCb;
-	}else{
-		M2M_ERR("Invalid Ota notify cb\n");
-	}
+    hif_register_cb(M2M_REQ_GROUP_OTA, m2m_ota_cb);
+    ret = hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_HOST_FILE_STATUS, NULL, 0, NULL, 0, 0);
 
-	hif_register_cb(M2M_REQ_GROUP_OTA,m2m_ota_cb);
-	ret = hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_HOST_FILE_STATUS, NULL, 0, NULL, 0, 0);
-
-	return ret;
+    return ret;
 }
+
 /*!
 @fn         NMI_API sint8  m2m_ota_notif_set_url(uint8 * u8Url)
 @brief      Set the OTA url.
@@ -195,16 +203,15 @@ NMI_API sint8  m2m_ota_init(tpfOtaUpdateCb pfOtaUpdateCb, tpfOtaNotifCb pfOtaNot
                 The url server address.
 @return     The function returns @ref M2M_SUCCESS for success and a negative value otherwise.
 */
-NMI_API sint8  m2m_ota_notif_set_url(uint8 * u8Url)
+NMI_API sint8  m2m_ota_notif_set_url(uint8 *u8Url)
 {
-	sint8 ret = M2M_SUCCESS;
-	uint16 u16UrlSize = m2m_strlen(u8Url) + 1;
-	/*Todo: we may change it to data pkt but we need to give it higher priority
-			but the priority is not implemented yet in data pkt
-	*/
-	ret = hif_send(M2M_REQ_GROUP_OTA,M2M_OTA_REQ_NOTIF_SET_URL,u8Url,u16UrlSize,NULL,0,0);
-	return ret;
-
+    sint8 ret = M2M_SUCCESS;
+    uint16 u16UrlSize = m2m_strlen(u8Url) + 1;
+    /*Todo: we may change it to data pkt but we need to give it higher priority
+            but the priority is not implemented yet in data pkt
+    */
+    ret = hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_NOTIF_SET_URL, u8Url, u16UrlSize, NULL, 0, 0);
+    return ret;
 }
 
 /*!
@@ -214,9 +221,9 @@ NMI_API sint8  m2m_ota_notif_set_url(uint8 * u8Url)
 */
 NMI_API sint8  m2m_ota_notif_check_for_update(void)
 {
-	sint8 ret = M2M_SUCCESS;
-	ret = hif_send(M2M_REQ_GROUP_OTA,M2M_OTA_REQ_NOTIF_CHECK_FOR_UPDATE,NULL,0,NULL,0,0);
-	return ret;
+    sint8 ret = M2M_SUCCESS;
+    ret = hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_NOTIF_CHECK_FOR_UPDATE, NULL, 0, NULL, 0, 0);
+    return ret;
 }
 
 /*!
@@ -228,9 +235,9 @@ NMI_API sint8  m2m_ota_notif_check_for_update(void)
 */
 NMI_API sint8 m2m_ota_notif_sched(uint32 u32Period)
 {
-	sint8 ret = M2M_SUCCESS;
-	ret = hif_send(M2M_REQ_GROUP_OTA,M2M_OTA_REQ_NOTIF_CHECK_FOR_UPDATE,NULL,0,NULL,0,0);
-	return ret;
+    sint8 ret = M2M_SUCCESS;
+    ret = hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_NOTIF_CHECK_FOR_UPDATE, NULL, 0, NULL, 0, 0);
+    return ret;
 }
 
 /*!
@@ -240,15 +247,30 @@ NMI_API sint8 m2m_ota_notif_sched(uint32 u32Period)
                 The download firmware URL, you get it from device info.
 @return     The function returns @ref M2M_SUCCESS for success and a negative value otherwise.
 */
-NMI_API sint8 m2m_ota_start_update(unsigned char * pcDownloadUrl)
+NMI_API sint8 m2m_ota_start_update(unsigned char *pcDownloadUrl)
 {
-	sint8 ret = M2M_SUCCESS;
-	uint16 u16DurlSize = m2m_strlen(pcDownloadUrl) + 1;
-	/*Todo: we may change it to data pkt but we need to give it higher priority
-			but the priority is not implemented yet in data pkt
-	*/
-	ret = hif_send(M2M_REQ_GROUP_OTA,M2M_OTA_REQ_START_FW_UPDATE,pcDownloadUrl,u16DurlSize,NULL,0,0);
-	return ret;
+    tstrOtaStart strOtaStart;
+    uint16 u16UrlLen = m2m_strlen(pcDownloadUrl);
+    if (u16UrlLen >= 255)
+    {
+        return M2M_ERR_INVALID_ARG;	
+    }
+
+    m2m_memset((uint8*)&strOtaStart, 0, sizeof(strOtaStart));
+    m2m_memcpy((uint8*)&strOtaStart.acUrl, (uint8*)pcDownloadUrl, u16UrlLen);
+
+    /* Convert SSL options to flags */
+    if (gu8OTASSLOpts & WIFI_OTA_SSL_OPT_BYPASS_SERVER_AUTH)
+        strOtaStart.u8SSLFlags |= WIFI_OTA_SSL_FLAG_BYPASS_SERVER_AUTH;
+
+    if (gu8OTASSLOpts & WIFI_OTA_SSL_OPT_SNI_VALIDATION)
+        strOtaStart.u8SSLFlags |= WIFI_OTA_SSL_FLAG_SNI_VALIDATION;
+
+    m2m_memcpy((uint8*)&strOtaStart.acSNI, gu8SNIServerName, m2m_strlen(gu8SNIServerName));	
+
+    strOtaStart.u32TotalLen = sizeof(strOtaStart);
+
+    return hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_START_FW_UPDATE_V2 | M2M_REQ_DATA_PKT, (uint8*)&strOtaStart, strOtaStart.u32TotalLen, NULL, 0, 0);
 }
 
 /*!
@@ -258,9 +280,9 @@ NMI_API sint8 m2m_ota_start_update(unsigned char * pcDownloadUrl)
 */
 NMI_API sint8 m2m_ota_rollback(void)
 {
-	sint8 ret = M2M_SUCCESS;
-	ret = hif_send(M2M_REQ_GROUP_OTA,M2M_OTA_REQ_ROLLBACK_FW,NULL,0,NULL,0,0);
-	return ret;
+    sint8 ret = M2M_SUCCESS;
+    ret = hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_ROLLBACK_FW, NULL, 0, NULL, 0, 0);
+    return ret;
 }
 
 /*!
@@ -270,9 +292,9 @@ NMI_API sint8 m2m_ota_rollback(void)
 */
 NMI_API sint8 m2m_ota_abort(void)
 {
-	sint8 ret = M2M_SUCCESS;
-	ret = hif_send(M2M_REQ_GROUP_OTA,M2M_OTA_REQ_ABORT,NULL,0,NULL,0,0);
-	return ret;
+    sint8 ret = M2M_SUCCESS;
+    ret = hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_ABORT, NULL, 0, NULL, 0, 0);
+    return ret;
 }
 
 /*!
@@ -282,9 +304,9 @@ NMI_API sint8 m2m_ota_abort(void)
 */
 NMI_API sint8 m2m_ota_switch_firmware(void)
 {
-	sint8 ret = M2M_SUCCESS;
-	ret = hif_send(M2M_REQ_GROUP_OTA,M2M_OTA_REQ_SWITCH_FIRMWARE,NULL,0,NULL,0,0);
-	return ret;
+    sint8 ret = M2M_SUCCESS;
+    ret = hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_SWITCH_FIRMWARE, NULL, 0, NULL, 0, 0);
+    return ret;
 }
 
 /*!
@@ -292,75 +314,23 @@ NMI_API sint8 m2m_ota_switch_firmware(void)
 @brief      Get the OTA Firmware version.
 @return     The function returns @ref M2M_SUCCESS for success and a negative value otherwise.
 */
-NMI_API sint8 m2m_ota_get_firmware_version(tstrM2mRev * pstrRev)
+NMI_API sint8 m2m_ota_get_firmware_version(tstrM2mRev *pstrRev)
 {
-	sint8 ret = M2M_SUCCESS;
-	ret = hif_chip_wake();
-	if(ret == M2M_SUCCESS)
-	{
-    	ret = nm_get_ota_firmware_info(pstrRev);
-		hif_chip_sleep();
-	}
-	return ret;
+    sint8 ret = M2M_SUCCESS;
+    ret = hif_chip_wake();
+    if(ret == M2M_SUCCESS)
+    {
+        ret = nm_get_ota_firmware_info(pstrRev);
+        hif_chip_sleep();
+    }
+    return ret;
 }
-#if 0
-#define M2M_OTA_FILE	"../../../m2m_ota.dat"
-NMI_API sint8 m2m_ota_test(void)
-{
-	uint32 page  = 0;
-	uint8 buffer[1500];
-	uint32 u32Sz = 0;
-	sint8 ret = M2M_SUCCESS;
-	FILE *fp =NULL;
-	fp = fopen(M2M_OTA_FILE,"rb");
-	if(fp)
-	{
-		fseek(fp, 0L, SEEK_END);
-		u32Sz = ftell(fp);
-		fseek(fp, 0L, SEEK_SET);
-
-		while(u32Sz > 0)
-		{
-			{
-				page = (rand()%1400);
-
-				if((page<100)||(page>1400)) page  = 1400;
-			}
-
-			if(u32Sz>page)
-			{
-				u32Sz-=page;
-			}
-			else
-			{
-				page = u32Sz;
-				u32Sz = 0;
-			}
-			printf("page %d\n", (int)page);
-			fread(buffer,page,1,fp);
-			ret = hif_send(M2M_REQ_GROUP_OTA,M2M_OTA_REQ_TEST|M2M_REQ_DATA_PKT,NULL,0,(uint8*)&buffer,page,0);
-			if(ret != M2M_SUCCESS)
-			{
-				M2M_ERR("\n");
-			}
-			nm_bsp_sleep(1);
-		}
-
-	}
-	else
-	{
-		M2M_ERR("nO err\n");
-	}
-	return ret;
-}
-#endif
 
 /*!
 @fn         NMI_API m2m_ota_host_file_get(unsigned char *pcDownloadUrl, tpfFileGetCb pfHFDGetCb)
 @brief      Download a file from a remote location and store it in the WINC's Flash.
 @param[in]  pcDownloadUrl
                 Url pointing to the remote file. HTTP/HTTPS only.
-
 @param[in]  pfHFDGetCb
                 Pointer to a callback to be executed when the download finishes.
 @return     Status of the get operation.
@@ -400,13 +370,10 @@ EXIT:
 @brief      Read a certain amount of bytes from a file in WINC's Flash using HIF transfer.
 @param[in]  u8Handler
                 ID of the file we are trying to read from. Must be valid.
-
 @param[in]  u32Offset
                 Offset from start of the file to read from (in bytes).
-
 @param[in]  u32Size
                 The amount of data to read (in bytes).
-
 @param[in]  pfHFDReadCb
                 Callback to be executed when the read operation completes.
 @return     Status of the read operation.
@@ -418,7 +385,7 @@ NMI_API sint8 m2m_ota_host_file_read_hif(uint8 u8Handler, uint32 u32Offset, uint
     FileBlock.u32Offset = u32Offset;
     FileBlock.u32Size   = u32Size;
 
-    if((u8Handler != gu8CurrFileHandlerID) || (HFD_INVALID_HANDLER == gu8CurrFileHandlerID) || (NULL == pfHFDReadCb)) goto EXIT; 
+    if((u8Handler != gu8CurrFileHandlerID) || (HFD_INVALID_HANDLER == gu8CurrFileHandlerID) || (NULL == pfHFDReadCb)) goto EXIT;
     s8Ret = hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_HOST_FILE_READ, (uint8 *) &FileBlock, sizeof(FileBlockDescriptor), NULL, 0, 0);
 
     if(M2M_SUCCESS == s8Ret)
@@ -432,13 +399,10 @@ EXIT:
 @brief      Read a certain amount of bytes from a file in WINC's Flash using SPI transfer.
 @param[in]  u8Handler
                 ID of the file we are trying to read from. Must be valid.
-
 @param[in]  pu8Buff
                 Pointer to a buffer to store the data being read. Must be valid.
-
 @param[in]  u32Offset
                 Offset from start of the file to read from (in bytes).
-
 @param[in]  u32Size
                 The amount of data to read (in Bytes).
 @return     Status of the read operation.
@@ -515,4 +479,96 @@ NMI_API sint8 m2m_ota_host_file_erase(uint8 u8Handler, tpfFileEraseCb pfHFDErase
     s8Ret = hif_send(M2M_REQ_GROUP_OTA, M2M_OTA_REQ_HOST_FILE_ERASE, NULL, 0, NULL, 0, 0);
 EXIT:
     return s8Ret;
+}
+
+/*!
+@fn         NMI_API sint8 m2m_ota_set_ssl_option(tenuOTASSLOption enuOptionName, const void *pOptionValue, size_t OptionLen)
+@brief      Sets SSL related options for OTA via https connections
+@param[in]  enuOptionName
+The SSL option to set, from the set defined in tenuOTASSLOption
+@param[in]  pOptionValue
+Pointer to the option value to set. Either a pointer to a uint32 with the value of 0 or 1, or a pointer to a string for the
+WIFI_OTA_SSL_OPT_SNI_SERVERNAME option.
+@param[in]  OptionLen
+The size of the option referred to in pOptionValue
+@return     The function returns @ref M2M_SUCCESS for success and a negative value otherwise.
+*/
+NMI_API sint8 m2m_ota_set_ssl_option(tenuOTASSLOption enuOptionName, const void *pOptionValue, size_t OptionLen)
+{
+    if((pOptionValue == NULL) && (OptionLen > 0))
+        return M2M_ERR_INVALID_ARG;
+
+    switch(enuOptionName)
+    {
+        case WIFI_OTA_SSL_OPT_SNI_SERVERNAME:
+            if(OptionLen > 64)
+                return M2M_ERR_INVALID_ARG;
+            if (m2m_strlen((uint8*)pOptionValue)+1 != OptionLen)
+                return M2M_ERR_INVALID_ARG;
+
+            m2m_memcpy(gu8SNIServerName, (uint8*)pOptionValue, OptionLen);
+            break;
+
+        case WIFI_OTA_SSL_OPT_SNI_VALIDATION:
+        case WIFI_OTA_SSL_OPT_BYPASS_SERVER_AUTH:
+            if(OptionLen != sizeof(int))
+                return M2M_ERR_INVALID_ARG;
+            switch(*(int*)pOptionValue)
+            {
+                case 1:
+                    gu8OTASSLOpts |= enuOptionName;
+                break;
+                case 0:
+                    gu8OTASSLOpts &= ~enuOptionName;
+                break;
+                default:
+                    return M2M_ERR_INVALID_ARG;
+            }
+        break;
+
+        default:
+            return M2M_ERR_INVALID_ARG;
+    }
+    return M2M_SUCCESS;
+}
+
+/*!
+@fn         NMI_API sint8 m2m_ota_get_ssl_option(tenuOTASSLOption enuOptionName, void *pOptionValue, size_t *OptionLen)
+@brief      Gets the status of SSL related options for OTA via https connections
+@param[in]  enuOptionName
+The SSL option to obtain the status of, from the set defined in tenuOTASSLOption
+@param[in]  pOptionValue
+Pointer to the option value to be updated by the function. Either a pointer to a uint32, or a pointer to a buffer for the
+WIFI_OTA_SSL_OPT_SNI_SERVERNAME option.
+@param[in]  OptionLen
+A pointer to a size_t type variable which will be updated to contain the size of the returned option.
+@return     The function returns @ref M2M_SUCCESS for success and a negative value otherwise.
+*/
+NMI_API sint8 m2m_ota_get_ssl_option(tenuOTASSLOption enuOptionName, void *pOptionValue, size_t *pOptionLen)
+{
+    if((pOptionValue == NULL) || (pOptionLen == NULL))
+        return M2M_ERR_INVALID_ARG;
+
+    switch(enuOptionName)
+    {
+    case WIFI_OTA_SSL_OPT_SNI_VALIDATION:
+    case WIFI_OTA_SSL_OPT_BYPASS_SERVER_AUTH:
+        if(*pOptionLen < sizeof(int))
+            return M2M_ERR_INVALID_ARG;
+        *pOptionLen = sizeof(int);
+        *(int*)pOptionValue = (gu8OTASSLOpts & enuOptionName) ? 1 : 0;
+        break;
+    case WIFI_OTA_SSL_OPT_SNI_SERVERNAME:
+    {
+        uint16 sni_len = m2m_strlen(gu8SNIServerName)+1;
+        if(*pOptionLen < sni_len)
+            return M2M_ERR_INVALID_ARG;
+        *pOptionLen = sni_len;
+        m2m_memcpy((uint8*)pOptionValue, gu8SNIServerName, sni_len);
+    }
+        break;
+    default:
+        return M2M_ERR_INVALID_ARG;
+    }
+    return M2M_SUCCESS;
 }
