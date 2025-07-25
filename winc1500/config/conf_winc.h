@@ -114,6 +114,9 @@
 /* --------------------------------------------------------------------------
  * Debug printing (1 = printf traces)
  * -------------------------------------------------------------------------- */
+#define CONF_WINC_PRINTF   printf
+#define CONF_WINC_DEBUG    1
+
 #define NM_DEBUG    1
 #if NM_DEBUG
   #define CONF_WINC_PRINTF   printf
