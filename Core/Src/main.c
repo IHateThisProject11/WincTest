@@ -68,8 +68,74 @@ static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_ICACHE_Init(void);
 /* USER CODE BEGIN PFP */
+/*------------------------------------------------------------------------------
+ * OTA status update callback
+ * must match: typedef void(*tpfOtaUpdateCb)(uint8 u8OtaUpdateStatusType,
+ *                                          uint8 u8OtaUpdateStatus);
+ *----------------------------------------------------------------------------*/
+static void OtaUpdateCb(uint8 u8Type, uint8 u8Status)
+{
+    switch (u8Type) {
+        case DL_STATUS:  /* download in progress or done */
+            if (u8Status == OTA_STATUS_SUCCESS) {
+                M2M_ERR("OTA download succeeded\n");
+            } else {
+                M2M_ERR("OTA download failed: %u\n", u8Status);
+            }
+            break;
+        case SW_STATUS:  /* switch to new image */
+            if (u8Status == OTA_STATUS_SUCCESS) {
+                M2M_ERR("Switching to new firmware...\n");
+                m2m_ota_switch_firmware();
+            } else {
+                M2M_ERR("OTA switch failed: %u\n", u8Status);
+            }
+            break;
+        case RB_STATUS:  /* rollback status */
+        case AB_STATUS:  /* abort status */
+        default:
+            M2M_ERR("OTA event %u status %u\n", u8Type, u8Status);
+            break;
+    }
+}
+
+/*-------------------------------------------------------------------------------
+ * OTA “notify” callback (won’t be used, but must be non-NULL).
+ * Prototype: typedef void (*tpfOtaNotifCb)(uint8 u8OtaNotifType, uint8 u8OtaNotifStatus);
+ *-------------------------------------------------------------------------------*/
+static void OtaNotifyCb(uint8 u8NotifType, uint8 u8NotifStatus)
+{
+    (void)u8NotifType;
+    (void)u8OtaNotifStatus;
+    /* no action */
+}
+
 
 /* USER CODE END PFP */
+/*------------------------------------------------------------------------------
+ * Wi-Fi event callback – registered with register_wifi_cb()
+ *----------------------------------------------------------------------------*/
+static void WifiEventCb(uint8 u8MsgType, void *pvMsg)
+{
+    switch (u8MsgType) {
+        case M2M_WIFI_RESP_CON_STATE_CHANGED:
+            /* your existing connection‐state code goes here */
+            break;
+
+        case M2M_WIFI_REQ_DHCP_CONF:
+        {
+            /* once DHCP is done, kick off OTA: */
+            const char ota_url[] = "http://192.168.1.100:8000/m2m_ota_3a0.bin";
+            if (m2m_ota_start_update((unsigned char*)ota_url) != M2M_SUCCESS) {
+                M2M_ERR("m2m_ota_start_update failed\n");
+            }
+        }
+        break;
+
+        default:
+            break;
+    }
+}
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
@@ -103,6 +169,9 @@ int main(void)
   /* USER CODE BEGIN SysInit */
   ITM_Init();
   M2M_ERR("TEST: nm_debug route OK\r\n");
+  if (m2m_ota_init(OtaUpdateCb, NULL) != M2M_SUCCESS) {
+      M2M_ERR("m2m_ota_init failed\n");
+  }
 
   /* USER CODE END SysInit */
 
@@ -134,18 +203,13 @@ int main(void)
 
   /* USER CODE BEGIN BSP */
 
-  /* -- Sample board code to send message over COM1 port ---- */
-  printf("Welcome to STM32 world !\n\r");
-
-  /* -- Sample board code to switch on led ---- */
-  BSP_LED_On(LED_GREEN);
-
   /* USER CODE END BSP */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
 
 
 

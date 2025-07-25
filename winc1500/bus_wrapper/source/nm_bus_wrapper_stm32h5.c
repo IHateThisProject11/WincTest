@@ -80,10 +80,14 @@ static void spi_select_slave(const uint8_t select)
     if (select)
     {
         HAL_GPIO_WritePin(SPI_WIFI_CS_GPIO_PORT,SPI_WIFI_CS_PIN,GPIO_PIN_RESET);
+        M2M_ERR("[BSP SPI] nm_spi_rw: exiting on gpio reset\n");
+
     }
     else
     {
         HAL_GPIO_WritePin(SPI_WIFI_CS_GPIO_PORT,SPI_WIFI_CS_PIN,GPIO_PIN_SET);
+        M2M_ERR("[BSP SPI] nm_spi_rw: exiting on gpio set\n");
+
     }
 }
 
