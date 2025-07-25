@@ -23,9 +23,11 @@
  * -------------------------------------------------------------------------- */
 #define CONF_WINC_SPI_HANDLE        hspi1
 #define CONF_WINC_SPI               SPI1
-#define CONF_WINC_SPI_BAUD_PRESCAL  SPI_BAUDRATEPRESCALER_8   /* 80/8 = 10 MHz */
 #define SPI_WIFI_HANDLE             CONF_WINC_SPI_HANDLE
-#define CONF_WINC_SPI_LOW_BAUD_PRESCALER  SPI_BAUDRATEPRESCALER_256
+#define CONF_WINC_SPI_BAUD_PRESCALER  SPI_BAUDRATEPRESCALER_2   /* <- 1.7.7 expects this name */
+#define CONF_WINC_SPI_BAUD_PRESCAL   CONF_WINC_SPI_BAUD_PRESCALER /* keep old alias, harmless */
+
+#define CONF_WINC_SPI_LOW_BAUD_PRESCALER  SPI_BAUDRATEPRESCALER_8
 
 /* Chip-select -------------------------------------------------------------- */
 #define CONF_WINC_SPI_CS_PORT       GPIOC

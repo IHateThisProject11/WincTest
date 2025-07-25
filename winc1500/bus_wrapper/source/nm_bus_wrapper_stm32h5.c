@@ -53,6 +53,7 @@
 #include "conf_winc.h"
 #include "nm_bus_wrapper.h"
 #include "nm_common.h"    // for LOW / HIGH
+#include "main.h"
 
 
 #define NM_BUS_MAX_TRX_SZ	256
@@ -316,19 +317,20 @@ sint8 nm_bus_reinit(void* config)
 	return M2M_SUCCESS;
 }
 
-
-void nm_bus_speed(uint8_t u8Speed)
+sint8 nm_bus_speed(uint8 u8Speed)
 {
-    // de-init current SPI bus
+    /* de-init current SPI bus */
     HAL_SPI_DeInit(&SPI_WIFI_HANDLE);
 
-    // pick either slow or fast prescaler
+    /* pick either slow or fast prescaler */
     if (u8Speed == LOW) {
         SPI_WIFI_HANDLE.Init.BaudRatePrescaler = CONF_WINC_SPI_LOW_BAUD_PRESCALER;
     } else {
         SPI_WIFI_HANDLE.Init.BaudRatePrescaler = CONF_WINC_SPI_BAUD_PRESCALER;
     }
 
-    // re-init SPI with new speed
+    /* re-init SPI with new speed */
     HAL_SPI_Init(&SPI_WIFI_HANDLE);
+
+    return M2M_SUCCESS;
 }
