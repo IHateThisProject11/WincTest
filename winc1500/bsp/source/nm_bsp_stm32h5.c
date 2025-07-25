@@ -119,30 +119,47 @@ sint8 nm_bsp_deinit(void)
  *	@fn		nm_bsp_reset
  *	@brief	Reset NMC1500 SoC by setting CHIP_EN and RESET_N signals low,
  *           CHIP_EN high then RESET_N high
- */
+// */
+//void nm_bsp_reset(void)
+//{
+//    /* Set Power sequence of GPIO lines */
+//    /* -------------------------------- */
+//
+//    /* Power enable (3.3V) - 3V3_DC2DC_EN output */
+//    HAL_GPIO_WritePin(GPIOA,CONF_WINC_PIN_POWER_ENABLE,GPIO_PIN_SET);
+//    HAL_Delay(100);
+//
+//    /* Level Shifter Translate enable - LEVEL_TRNSLT_EN output */
+//    HAL_GPIO_WritePin(CONF_WINC_PORT_LEVEL_SHIFTER_ENABLE,CONF_WINC_PIN_LEVEL_SHIFTER_ENABLE,GPIO_PIN_RESET);
+//    HAL_Delay(100);
+//
+//    /* Set CHIP enable */
+//   // HAL_GPIO_WritePin(GPIOA,CONF_WINC_PIN_CHIP_ENABLE,GPIO_PIN_SET);
+//    HAL_GPIO_WritePin(CONF_WINC_PORT_CHIP_ENABLE, CONF_WINC_PIN_CHIP_ENABLE, GPIO_PIN_SET);
+//    HAL_Delay(100);
+//
+//    /* Set RSTN 1.8V */
+//    HAL_GPIO_WritePin(CONF_WINC_PORT_RESET,        CONF_WINC_PIN_RESET,        GPIO_PIN_SET);
+//    HAL_Delay(100);
+//
+//}
 void nm_bsp_reset(void)
 {
-    /* Set Power sequence of GPIO lines */
-    /* -------------------------------- */
+    /* Assert reset immediately after MCU startup */
+    HAL_GPIO_WritePin(CONF_WINC_RESET_PORT,
+                      CONF_WINC_RESET_PIN, GPIO_PIN_RESET);
 
-    /* Power enable (3.3V) - 3V3_DC2DC_EN output */
-    HAL_GPIO_WritePin(GPIOA,CONF_WINC_PIN_POWER_ENABLE,GPIO_PIN_SET);
-    HAL_Delay(100);
+    /* 10 ms > 8 ms spec; long enough even at cold temperature */
+    HAL_Delay(10);
 
-    /* Level Shifter Translate enable - LEVEL_TRNSLT_EN output */
-    HAL_GPIO_WritePin(CONF_WINC_PORT_LEVEL_SHIFTER_ENABLE,CONF_WINC_PIN_LEVEL_SHIFTER_ENABLE,GPIO_PIN_RESET);
-    HAL_Delay(100);
+    /* Release reset – CHIP_EN is already high on your board */
+    HAL_GPIO_WritePin(CONF_WINC_RESET_PORT,
+                      CONF_WINC_RESET_PIN, GPIO_PIN_SET);
 
-    /* Set CHIP enable */
-   // HAL_GPIO_WritePin(GPIOA,CONF_WINC_PIN_CHIP_ENABLE,GPIO_PIN_SET);
-    HAL_GPIO_WritePin(CONF_WINC_PORT_CHIP_ENABLE, CONF_WINC_PIN_CHIP_ENABLE, GPIO_PIN_SET);
-    HAL_Delay(100);
-
-    /* Set RSTN 1.8V */
-    HAL_GPIO_WritePin(CONF_WINC_PORT_RESET,        CONF_WINC_PIN_RESET,        GPIO_PIN_SET);
-    HAL_Delay(100);
-
+    /* Extra guard time before first SPI access */
+    HAL_Delay(2);
 }
+
 
 /*
  *	@fn		nm_bsp_sleep

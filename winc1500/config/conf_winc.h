@@ -21,7 +21,8 @@
 /* --------------------------------------------------------------------------
  * SPI interface (SPI1 on APB2 @80 MHz → 10 MHz SPI clock)
  * -------------------------------------------------------------------------- */
-#define CONF_WINC_SPI_HANDLE        hspi1
+#define CONF_WINC_USE_SPI 1
+//#define CONF_WINC_SPI_HANDLE        hspi1
 #define CONF_WINC_SPI               SPI1
 #define SPI_WIFI_HANDLE             CONF_WINC_SPI_HANDLE
 #define CONF_WINC_SPI_BAUD_PRESCALER  SPI_BAUDRATEPRESCALER_2   /* <- 1.7.7 expects this name */
