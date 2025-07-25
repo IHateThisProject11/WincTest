@@ -106,7 +106,7 @@ static void OtaUpdateCb(uint8 u8Type, uint8 u8Status)
 static void OtaNotifyCb(uint8 u8NotifType, uint8 u8NotifStatus)
 {
     (void)u8NotifType;
-    (void)u8OtaNotifStatus;
+    (void)u8NotifStatus;
     /* no action */
 }
 
@@ -124,13 +124,18 @@ static void WifiEventCb(uint8 u8MsgType, void *pvMsg)
 
         case M2M_WIFI_REQ_DHCP_CONF:
         {
-            /* once DHCP is done, kick off OTA: */
+            uint8_t* ptrIp = ((tstrM2MIPConfig*)pvMsg)->u32StaticIP;
+            M2M_ERR("DHCP assigned %u.%u.%u.%u, starting OTA\n",
+                    ptrIp[0], ptrIp[1], ptrIp[2], ptrIp[3]);
+
+            /* URL must be HTTP(s)-accessible and end in m2m_ota_3a0.bin */
             const char ota_url[] = "http://192.168.1.100:8000/m2m_ota_3a0.bin";
             if (m2m_ota_start_update((unsigned char*)ota_url) != M2M_SUCCESS) {
                 M2M_ERR("m2m_ota_start_update failed\n");
             }
         }
         break;
+
 
         default:
             break;
@@ -168,10 +173,11 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
   ITM_Init();
-  M2M_ERR("TEST: nm_debug route OK\r\n");
-  if (m2m_ota_init(OtaUpdateCb, NULL) != M2M_SUCCESS) {
+  if (m2m_ota_init(OtaUpdateCb, OtaNotifyCb) != M2M_SUCCESS) {
       M2M_ERR("m2m_ota_init failed\n");
   }
+
+}
 
   /* USER CODE END SysInit */
 
