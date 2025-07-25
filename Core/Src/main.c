@@ -17,6 +17,8 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <m2m_ota.h>               // the Atmel OTA API
+#include <nm_debug.h>
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -26,8 +28,6 @@
 #include <string.h>
 #include <stdio.h>
 #include "core_cm33.h"          /* gives ITM_SendChar                */
-#include "nm_debug.h"
-#include "m2m_ota.h"               // the Atmel OTA API
 
 
 

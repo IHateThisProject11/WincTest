@@ -44,6 +44,21 @@
 
 #include "bsp/include/nm_bsp.h"
 #include "common/include/nm_debug.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#ifndef LOW
+#  define LOW  0
+#endif
+#ifndef HIGH
+#  define HIGH 1
+#endif
+
+/* min(a,b) helper for m2m_ssl */
+#ifndef min
+#  define min(a,b) (( (a) < (b) ) ? (a) : (b))
+#endif
 
 /**@addtogroup COMMONDEF
  * @{

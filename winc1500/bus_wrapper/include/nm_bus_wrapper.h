@@ -37,6 +37,12 @@
 
 #include "common\include\nm_common.h"
 
+#include "conf_winc.h"
+#include "main.h"               /* CubeMX creates hspi1 here            */
+
+extern SPI_HandleTypeDef hspi1; /* make the linker see it                */
+
+
 /**
 	BUS Type
 **/
@@ -52,7 +58,13 @@
 												(same start/stop conditions) ==> I2C only. Parameter:tstrNmI2cSpecial */
 #define NM_BUS_IOCTL_RW			((uint8)3)	/*!< Read/Write at the same time ==> SPI only. Parameter:tstrNmSpiRw */
 
-#define NM_BUS_IOCTL_WR_RESTART	((uint8)4)				/*!< Write buffer then made restart condition then read ==> I2C only. parameter:tstrNmI2cSpecial */ 
+#define NM_BUS_IOCTL_WR_RESTART	((uint8)4)				/*!< Write buffer then made restart condition then read ==> I2C only. parameter:tstrNmI2cSpecial */
+
+/**
+ * @brief Switch the WINC1500 SPI between LOW and HIGH speed.
+ * @param u8Speed  LOW (0) or HIGH (1) from nm_common.h
+ */
+
 /**
 *	@struct	tstrNmBusCapabilities
 *	@brief	Structure holding bus capabilities information
@@ -174,8 +186,12 @@ sint8 nm_bus_break(void);
  *  @return     M2M_SUCCESS in case of success and M2M_ERR_INVALID_ARG in case of an 
 				incorrect parameter
  */
+//sint8 nm_bus_speed(uint8 level);
+//void nm_bus_speed(uint8_t u8Speed);
 sint8 nm_bus_speed(uint8 level);
-
+#ifndef GPIO_SPEED_HIGH
+  #define GPIO_SPEED_HIGH GPIO_SPEED_FREQ_HIGH
+#endif
 /**
  *  @fn         spi_rw
  *  @brief      Process SPI Read/Write operation

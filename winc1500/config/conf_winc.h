@@ -1,9 +1,8 @@
 /**
  *  Board-specific configuration – WINC1500 on STM32H503 (Nucleo-64)
  *  ────────────────────────────────────────────────────────────────
- *  Wiring assumed (from your screenshot):
+ *  Wiring assumed:
  *      WINC1500  <-->  MCU
- *      ----------------------------------------
  *      SCK      →  PB3   (SPI1_SCK)
  *      MISO     ←  PA6   (SPI1_MISO)
  *      MOSI     →  PA7   (SPI1_MOSI)
@@ -11,9 +10,8 @@
  *      nIRQ     ←  PC4   (GPIO in , EXTI4)
  *      RESET_N  →  PB0   (GPIO out)
  *      CHIP_EN  →  PB1   (GPIO out)
- *
- *  If you re-route any pin, just edit the #defines below.
  */
+
 #ifndef CONF_WINC_H_
 #define CONF_WINC_H_
 
@@ -21,28 +19,35 @@
 #include "main.h"               /* Cube-generated handles */
 
 /* --------------------------------------------------------------------------
- * SPI interface (SPI1 on APB2 @ 80 MHz) --> ~10 MHz SPI clock
+ * SPI interface (SPI1 on APB2 @80 MHz → 10 MHz SPI clock)
  * -------------------------------------------------------------------------- */
 #define CONF_WINC_SPI_HANDLE        hspi1
 #define CONF_WINC_SPI               SPI1
 #define CONF_WINC_SPI_BAUD_PRESCAL  SPI_BAUDRATEPRESCALER_8   /* 80/8 = 10 MHz */
+#define SPI_WIFI_HANDLE             CONF_WINC_SPI_HANDLE
+#define CONF_WINC_SPI_LOW_BAUD_PRESCALER  SPI_BAUDRATEPRESCALER_256
 
 /* Chip-select -------------------------------------------------------------- */
 #define CONF_WINC_SPI_CS_PORT       GPIOC
 #define CONF_WINC_SPI_CS_PIN        GPIO_PIN_5
-#define CONF_WINC_CS_ASSERT()   HAL_GPIO_WritePin(CONF_WINC_SPI_CS_PORT, \
-                                                  CONF_WINC_SPI_CS_PIN, GPIO_PIN_RESET)
-#define CONF_WINC_CS_DEASSERT() HAL_GPIO_WritePin(CONF_WINC_SPI_CS_PORT, \
-                                                  CONF_WINC_SPI_CS_PIN, GPIO_PIN_SET)
+#define CONF_WINC_CS_ASSERT()       HAL_GPIO_WritePin(CONF_WINC_SPI_CS_PORT, \
+                                                   CONF_WINC_SPI_CS_PIN, GPIO_PIN_RESET)
+#define CONF_WINC_CS_DEASSERT()     HAL_GPIO_WritePin(CONF_WINC_SPI_CS_PORT, \
+                                                   CONF_WINC_SPI_CS_PIN, GPIO_PIN_SET)
 
-/* SCK / MISO / MOSI --------------------------------------------------------*/
-#define CONF_WINC_SPI_SCK_PORT   GPIOA      /* PA5 now */
-#define CONF_WINC_SPI_SCK_PIN    GPIO_PIN_5
+/* convenience used by the bus-wrapper ----------------------------------- */
+#define SPI_WIFI_HANDLE                CONF_WINC_SPI_HANDLE
+#define SPI_WIFI_CS_GPIO_PORT          CONF_WINC_SPI_CS_PORT
+#define SPI_WIFI_CS_PIN                CONF_WINC_SPI_CS_PIN
+/* SCK / MISO / MOSI -------------------------------------------------------- */
+#define CONF_WINC_SPI_SCK_PORT      GPIOA
+#define CONF_WINC_SPI_SCK_PIN       GPIO_PIN_5
 
-#define CONF_WINC_SPI_MISO_PORT  GPIOA      /* PA6 */
-#define CONF_WINC_SPI_MISO_PIN   GPIO_PIN_6
-#define CONF_WINC_SPI_MOSI_PORT  GPIOA      /* PA7 */
-#define CONF_WINC_SPI_MOSI_PIN   GPIO_PIN_7
+#define CONF_WINC_SPI_MISO_PORT     GPIOA
+#define CONF_WINC_SPI_MISO_PIN      GPIO_PIN_6
+
+#define CONF_WINC_SPI_MOSI_PORT     GPIOA
+#define CONF_WINC_SPI_MOSI_PIN      GPIO_PIN_7
 
 /* RESET_N & CHIP_EN -------------------------------------------------------- */
 #define CONF_WINC_RESET_PORT        GPIOB
@@ -57,15 +62,41 @@
 #define CONF_WINC_IRQ_EXTI_IRQn     EXTI4_IRQn                 /* PC4 ↔ EXTI4 */
 
 /* ----------------------------------------------------------------------------
- *  Compatibility aliases – satisfy hard-coded names inside nm_bsp_stm32h5.c
+ *  Compatibility aliases – satisfy hard-coded names in nm_bsp_stm32h5.c & bus_wrapper
  * ----------------------------------------------------------------------------
- *  If your board really has 3 V3 / level-shifter control, map them here.
- *  Otherwise leave them on unused pins so the code compiles harmlessly.
  */
-#define CONF_WINC_PIN_POWER_ENABLE          GPIO_PIN_8         /* PA8 is free */
+/* core SPI bus */
+#define SPI_WIFI                  CONF_WINC_SPI
+#define SPI_WIFI_CLK_ENABLE()     __HAL_RCC_SPI1_CLK_ENABLE()
+
+/* chip-select */
+#define SPI_WIFI_CS_GPIO_PORT     CONF_WINC_SPI_CS_PORT
+#define SPI_WIFI_CS_PIN           CONF_WINC_SPI_CS_PIN
+
+/* data pins */
+#define SPI_WIFI_SCK_GPIO_PORT    CONF_WINC_SPI_SCK_PORT
+#define SPI_WIFI_SCK_PIN          CONF_WINC_SPI_SCK_PIN
+
+#define SPI_WIFI_MISO_GPIO_PORT   CONF_WINC_SPI_MISO_PORT
+#define SPI_WIFI_MISO_PIN         CONF_WINC_SPI_MISO_PIN
+
+#define SPI_WIFI_MOSI_GPIO_PORT   CONF_WINC_SPI_MOSI_PORT
+#define SPI_WIFI_MOSI_PIN         CONF_WINC_SPI_MOSI_PIN
+
+/* AF mapping for PB3/PB4/PB5 → SPI1 */
+#define SPI3_WIFI_AF              GPIO_AF5_SPI1
+
+/* GPIO speed enum alias */
+#define GPIO_SPEED_HIGH           GPIO_SPEED_FREQ_HIGH
+#define GPIO_SPEED_MEDIUM         GPIO_SPEED_FREQ_MEDIUM
+#define GPIO_SPEED_LOW            GPIO_SPEED_FREQ_LOW
+#define GPIO_SPEED_VERY_HIGH      GPIO_SPEED_FREQ_VERY_HIGH
+
+/* power & level-shifter (unused on this board but needed by BSP) */
+#define CONF_WINC_PIN_POWER_ENABLE          GPIO_PIN_8   /* PA8 */
 #define CONF_WINC_PORT_POWER_ENABLE         GPIOA
 
-#define CONF_WINC_PIN_LEVEL_SHIFTER_ENABLE  GPIO_PIN_9         /* PC9 free  */
+#define CONF_WINC_PIN_LEVEL_SHIFTER_ENABLE  GPIO_PIN_9   /* PC9 */
 #define CONF_WINC_PORT_LEVEL_SHIFTER_ENABLE GPIOC
 
 #define CONF_WINC_PIN_CHIP_ENABLE           CONF_WINC_CHIP_EN_PIN
@@ -87,9 +118,12 @@
 #else
   #define CONF_WINC_PRINTF(...)
 #endif
-// map NM_DEBUG → CONF_WINC_DEBUG so the driver’s nm_debug.h sees it
-#define CONF_WINC_DEBUG    NM_DEBUG
-#undef M2M_LOG_LEVEL
-#define M2M_LOG_LEVEL    M2M_LOG_DBG
+
+
+
+/* also map chip-select lines if needed by the wrapper */
+#define SPI_WIFI_CS_GPIO_PORT   CONF_WINC_SPI_CS_PORT
+#define SPI_WIFI_CS_PIN         CONF_WINC_SPI_CS_PIN
+/* ─────────────────────────────────────────────────────────────────────────── */
 
 #endif /* CONF_WINC_H_ */
