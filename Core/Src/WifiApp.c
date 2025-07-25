@@ -6,8 +6,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "m2m_wifi.h"
-
-
+#include "nm_bsp.h"
+#include "socket.h"
 
 /* External interrupt service routine from bus wrapper */
 extern void isr(void);
