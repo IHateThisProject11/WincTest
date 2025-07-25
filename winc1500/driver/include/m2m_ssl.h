@@ -32,7 +32,7 @@
  *
  */
 
-/**@defgroup SSLAPI SSL
+/** @defgroup SSLAPI SSL
     @brief
         Provides a description of the SSL Layer.
     @{
@@ -66,13 +66,13 @@ INCLUDES
 /*!
 @ingroup    SSLCallbacks
 @typedef    void (*tpfAppSSLCb)(uint8 u8MsgType, void* pvMsg);
-@brief A callback to get SSL notifications.
-@param[in] u8MsgType
+@brief      A callback to get SSL notifications.
+@param[in]  u8MsgType
                 The type of the message received.
 @param[in]  pvMsg
                 A structure to provide notification payload.
 */
-typedef void (*tpfAppSSLCb) (uint8 u8MsgType, void * pvMsg);
+typedef void (*tpfAppSSLCb)(uint8 u8MsgType, void *pvMsg);
 
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
 FUNCTION PROTOTYPES
@@ -91,16 +91,16 @@ NMI_API sint8 m2m_ssl_init(tpfAppSSLCb pfAppSSLCb);
 /*!
 @ingroup    SSLFUNCTIONS
 @fn         NMI_API sint8 m2m_ssl_handshake_rsp(tstrEccReqInfo* strECCResp, uint8* pu8RspDataBuff, uint16 u16RspDataSz);
-	@brief	 Sends ECC responses to the WINC
-	@param [in]	strECCResp
-				ECC Response struct.
-	@param [in]	pu8RspDataBuff
-				Pointer of the response data to be sent.
-	@param [in]	u16RspDataSz
-				Response data size.
+@brief      Sends ECC responses to the WINC.
+@param[in]  strECCResp
+                ECC Response struct.
+@param[in]  pu8RspDataBuff
+                Pointer of the response data to be sent.
+@param[in]  u16RspDataSz
+                Response data size.
 @return     The function returns @ref M2M_SUCCESS for success and a negative value otherwise.
 */
-NMI_API sint8 m2m_ssl_handshake_rsp(tstrEccReqInfo* strECCResp, uint8* pu8RspDataBuff, uint16 u16RspDataSz);
+NMI_API sint8 m2m_ssl_handshake_rsp(tstrEccReqInfo *strECCResp, uint8 *pu8RspDataBuff, uint16 u16RspDataSz);
 
 /*!
 @ingroup    SSLFUNCTIONS
@@ -112,7 +112,7 @@ NMI_API sint8 m2m_ssl_handshake_rsp(tstrEccReqInfo* strECCResp, uint8* pu8RspDat
                 Size of the certificates.
 @return     The function returns @ref M2M_SUCCESS for success and a negative value otherwise.
 */
-NMI_API sint8 m2m_ssl_send_certs_to_winc(uint8* pu8Buffer, uint32 u32BufferSz);
+NMI_API sint8 m2m_ssl_send_certs_to_winc(uint8 *pu8Buffer, uint32 u32BufferSz);
 
 /*!
 @ingroup    SSLFUNCTIONS
@@ -193,8 +193,6 @@ NMI_API sint8 m2m_ssl_retrieve_hash(uint8 *pu8Value, uint16 u16ValueSz);
 @brief      Allow SSL driver to tidy up when the application chooses not to retrieve all available
             information.
 
-@return     None.
-
 @warning    The application must call this function if it has been notified (via
             @ref ECC_REQ_SIGN_GEN or @ref ECC_REQ_SIGN_VERIFY) that information is available for
             retrieving from the WINC, but chooses not to retrieve it all.
@@ -212,7 +210,6 @@ NMI_API void m2m_ssl_stop_retrieving(void);
 @ingroup    SSLFUNCTIONS
 @fn         NMI_API void m2m_ssl_stop_processing_certs(void);
 @brief      Allow SSL driver to tidy up in case application does not read all available certificates.
-@return     None.
 
 @warning    This API has been deprecated and is kept for legacy purposes only. It is recommended
             that @ref m2m_ssl_stop_retrieving is used instead.
@@ -223,8 +220,6 @@ NMI_API void m2m_ssl_stop_processing_certs(void);
 @ingroup    SSLFUNCTIONS
 @fn         NMI_API void m2m_ssl_ecc_process_done(void);
 @brief      Allow SSL driver to tidy up after application has finished processing ECC message.
-
-@return     None.
 
 @warning    The application should call this function after receiving an SSL callback with message
             type @ref M2M_SSL_REQ_ECC, after retrieving any related information, and before

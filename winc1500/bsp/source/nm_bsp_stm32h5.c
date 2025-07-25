@@ -46,14 +46,7 @@
 //#include "cmsis_os.h"
 #include "conf_winc.h"
 
-//i added these
-#include <string.h>
-extern UART_HandleTypeDef huart2;  // or whichever UART you’re using
-void nm_bsp_debug(const char *str)
-{
-    // Transmit the zero-terminated string over UART
-    HAL_UART_Transmit(&huart2, (uint8_t*)str, strlen(str), HAL_MAX_DELAY);
-}
+
 
 
 /*

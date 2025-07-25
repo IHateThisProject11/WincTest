@@ -1,40 +1,32 @@
-
 /**
  *
  * \file
  *
  * \brief This module contains NMC1000 bus wrapper APIs declarations.
  *
- * Copyright (c) 2016-2017 Atmel Corporation. All rights reserved.
+ * Copyright (c) 2016-2022 Microchip Technology Inc. and its subsidiaries.
  *
  * \asf_license_start
  *
  * \page License
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Subject to your compliance with these terms, you may use Microchip
+ * software and any derivatives exclusively with Microchip products.
+ * It is your responsibility to comply with third party license terms applicable
+ * to your use of third party software (including open source software) that
+ * may accompany Microchip software.
  *
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * 3. The name of Atmel may not be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY ATMEL "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT ARE
- * EXPRESSLY AND SPECIFICALLY DISCLAIMED. IN NO EVENT SHALL ATMEL BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS SUPPLIED BY MICROCHIP "AS IS". NO WARRANTIES,
+ * WHETHER EXPRESS, IMPLIED OR STATUTORY, APPLY TO THIS SOFTWARE,
+ * INCLUDING ANY IMPLIED WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY,
+ * AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT WILL MICROCHIP BE
+ * LIABLE FOR ANY INDIRECT, SPECIAL, PUNITIVE, INCIDENTAL OR CONSEQUENTIAL
+ * LOSS, DAMAGE, COST OR EXPENSE OF ANY KIND WHATSOEVER RELATED TO THE
+ * SOFTWARE, HOWEVER CAUSED, EVEN IF MICROCHIP HAS BEEN ADVISED OF THE
+ * POSSIBILITY OR THE DAMAGES ARE FORESEEABLE.  TO THE FULLEST EXTENT
+ * ALLOWED BY LAW, MICROCHIP'S TOTAL LIABILITY ON ALL CLAIMS IN ANY WAY
+ * RELATED TO THIS SOFTWARE WILL NOT EXCEED THE AMOUNT OF FEES, IF ANY,
+ * THAT YOU HAVE PAID DIRECTLY TO MICROCHIP FOR THIS SOFTWARE.
  *
  * \asf_license_stop
  *
@@ -43,7 +35,13 @@
 #ifndef _NM_BUS_WRAPPER_H_
 #define _NM_BUS_WRAPPER_H_
 
-#include "common/include/nm_common.h"
+#include "common\include\nm_common.h"
+
+#include "conf_winc.h"
+#include "main.h"               /* CubeMX creates hspi1 here            */
+
+extern SPI_HandleTypeDef hspi1; /* make the linker see it                */
+
 
 /**
 	BUS Type
@@ -62,44 +60,16 @@
 
 #define NM_BUS_IOCTL_WR_RESTART	((uint8)4)				/*!< Write buffer then made restart condition then read ==> I2C only. parameter:tstrNmI2cSpecial */
 
-#ifndef NM_BUS_WRAPPER_STM32H5_H_
-#define NM_BUS_WRAPPER_STM32H5_H_
-
-#include "conf_winc.h"    /* for CONF_WINC_SPI_CS_PORT, CONF_WINC_SPI_CS_PIN */
-#include "stm32h5xx_hal.h"
-
-/* Use SPI1 on PA5/6/7 */
-#define SPI_WIFI                   SPI1
-#define SPI_WIFI_CLK_ENABLE()      __HAL_RCC_SPI1_CLK_ENABLE()
-#define SPI_WIFI_CLK_DISABLE()     __HAL_RCC_SPI1_CLK_DISABLE()
-
-/* chip‐select */
-#define SPI_WIFI_CS_GPIO_PORT      CONF_WINC_SPI_CS_PORT
-#define SPI_WIFI_CS_PIN            CONF_WINC_SPI_CS_PIN
-
-/* HW NSS is not used: we drive CS manually */
-
-/* data lines all on GPIOA */
-#define SPI_WIFI_SCK_GPIO_PORT     GPIOA
-#define SPI_WIFI_SCK_PIN           GPIO_PIN_5
-#define SPI_WIFI_MISO_GPIO_PORT    GPIOA
-#define SPI_WIFI_MISO_PIN          GPIO_PIN_6
-#define SPI_WIFI_MOSI_GPIO_PORT    GPIOA
-#define SPI_WIFI_MOSI_PIN          GPIO_PIN_7
-
-/* AF mapping for SPI1 on PA5/6/7 */
-#define SPI3_WIFI_AF               GPIO_AF5_SPI1
-
-/* HAL port speed alias */
-#define GPIO_SPEED_HIGH            GPIO_SPEED_FREQ_HIGH
-
-#endif /* NM_BUS_WRAPPER_STM32H5_H_ */
+/**
+ * @brief Switch the WINC1500 SPI between LOW and HIGH speed.
+ * @param u8Speed  LOW (0) or HIGH (1) from nm_common.h
+ */
 
 /**
 *	@struct	tstrNmBusCapabilities
 *	@brief	Structure holding bus capabilities information
 *	@sa	NM_BUS_TYPE_I2C, NM_BUS_TYPE_SPI
-*/
+*/ 
 typedef struct
 {
 	uint16	u16MaxTrxSz;	/*!< Maximum transfer size. Must be >= 16 bytes*/
@@ -109,7 +79,7 @@ typedef struct
 *	@struct	tstrNmI2cDefault
 *	@brief	Structure holding I2C default operation parameters
 *	@sa		NM_BUS_IOCTL_R, NM_BUS_IOCTL_W
-*/
+*/ 
 typedef struct
 {
 	uint8 u8SlaveAdr;
@@ -121,12 +91,12 @@ typedef struct
 *	@struct	tstrNmI2cSpecial
 *	@brief	Structure holding I2C special operation parameters
 *	@sa		NM_BUS_IOCTL_W_SPECIAL
-*/
+*/ 
 typedef struct
 {
 	uint8 u8SlaveAdr;
 	uint8	*pu8Buf1;	/*!< pointer to the 1st buffer */
-	uint8	*pu8Buf2;	/*!< pointer to the 2nd buffer */
+	uint8	*pu8Buf2;	/*!< pointer to the 2nd buffer */	
 	uint16	u16Sz1;		/*!< 1st buffer size */
 	uint16	u16Sz2;		/*!< 2nd buffer size */
 } tstrNmI2cSpecial;
@@ -135,14 +105,14 @@ typedef struct
 *	@struct	tstrNmSpiRw
 *	@brief	Structure holding SPI R/W parameters
 *	@sa		NM_BUS_IOCTL_RW
-*/
+*/ 
 typedef struct
 {
-	uint8	*pu8InBuf;		/*!< pointer to input buffer.
+	uint8	*pu8InBuf;		/*!< pointer to input buffer. 
 							Can be set to null and in this case zeros should be sent at MOSI */
-	uint8	*pu8OutBuf;		/*!< pointer to output buffer.
+	uint8	*pu8OutBuf;		/*!< pointer to output buffer. 
 							Can be set to null and in this case data from MISO can be ignored  */
-	uint16	u16Sz;			/*!< Transfere size */
+	uint16	u16Sz;			/*!< Transfere size */	
 } tstrNmSpiRw;
 
 
@@ -150,7 +120,7 @@ typedef struct
 *	@struct	tstrNmUartDefault
 *	@brief	Structure holding UART default operation parameters
 *	@sa		NM_BUS_IOCTL_R, NM_BUS_IOCTL_W
-*/
+*/ 
 typedef struct
 {
 	uint8	*pu8Buf;	/*!< Operation buffer */
@@ -167,7 +137,7 @@ extern tstrNmBusCapabilities egstrNmBusCapabilities;
 *	@fn		nm_bus_init
 *	@brief	Initialize the bus wrapper
 *	@return	ZERO in case of success and M2M_ERR_BUS_FAIL in case of failure
-*/
+*/ 
 sint8 nm_bus_init(void *);
 
 /**
@@ -179,14 +149,14 @@ sint8 nm_bus_init(void *);
 *					Arbitrary parameter depending on IOCTL
 *	@return	ZERO in case of success and M2M_ERR_BUS_FAIL in case of failure
 *	@note	For SPI only, it's important to be able to send/receive at the same time
-*/
+*/ 
 sint8 nm_bus_ioctl(uint8 u8Cmd, void* pvParameter);
 
 /**
 *	@fn		nm_bus_deinit
 *	@brief	De-initialize the bus wrapper
 *	@return	ZERO in case of success and M2M_ERR_BUS_FAIL in case of failure
-*/
+*/ 
 sint8 nm_bus_deinit(void);
 
 /*
@@ -201,10 +171,39 @@ sint8 nm_bus_reinit(void *);
 *	@fn			nm_bus_get_chip_type
 *	@brief		get chip type
 *	@return		ZERO in case of success and M2M_ERR_BUS_FAIL in case of failure
-*/
+*/ 
 #ifdef CONF_WINC_USE_UART
 uint8 nm_bus_get_chip_type(void);
+sint8 nm_bus_break(void);
 #endif
+
+/**
+ *  @fn         nm_bus_speed
+ *  @brief      Either set the bus speed to default (HIGH) or a reduced speed (LOW)
+				to increase stability during WINC wakeup
+ *  @param [in] uint8 level
+ *                  HIGH(1) or LOW(0)
+ *  @return     M2M_SUCCESS in case of success and M2M_ERR_INVALID_ARG in case of an 
+				incorrect parameter
+ */
+//sint8 nm_bus_speed(uint8 level);
+//void nm_bus_speed(uint8_t u8Speed);
+sint8 nm_bus_speed(uint8 level);
+#ifndef GPIO_SPEED_HIGH
+  #define GPIO_SPEED_HIGH GPIO_SPEED_FREQ_HIGH
+#endif
+/**
+ *  @fn         spi_rw
+ *  @brief      Process SPI Read/Write operation
+ *  @param      pu8Mosi TX Data buffer
+ *  @param      pu8Miso RX Data buffer
+ *  @param      u16Sz Transfer length
+ *  @return     ZERO in case of success and M2M_ERR_BUS_FAIL in case of failure
+ */
+#ifdef CONF_WINC_USE_SPI
+sint8 nm_spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz);
+#endif
+
 #ifdef __cplusplus
 	 }
  #endif

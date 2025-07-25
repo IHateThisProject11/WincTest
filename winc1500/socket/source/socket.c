@@ -47,20 +47,20 @@ MACROS
 *=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
 
-#define TLS_RECORD_HEADER_LENGTH			(5)
-#define ETHERNET_HEADER_OFFSET				(34)
-#define ETHERNET_HEADER_LENGTH				(14)
-#define TCP_IP_HEADER_LENGTH				(40)
-#define UDP_IP_HEADER_LENGTH				(28)
+#define TLS_RECORD_HEADER_LENGTH            (5)
+#define ETHERNET_HEADER_OFFSET              (34)
+#define ETHERNET_HEADER_LENGTH              (14)
+#define TCP_IP_HEADER_LENGTH                (40)
+#define UDP_IP_HEADER_LENGTH                (28)
 
-#define IP_PACKET_OFFSET					(ETHERNET_HEADER_LENGTH + ETHERNET_HEADER_OFFSET - M2M_HIF_HDR_OFFSET)
+#define IP_PACKET_OFFSET                    (ETHERNET_HEADER_LENGTH + ETHERNET_HEADER_OFFSET - M2M_HIF_HDR_OFFSET)
 
-#define TCP_TX_PACKET_OFFSET				(IP_PACKET_OFFSET + TCP_IP_HEADER_LENGTH)
-#define UDP_TX_PACKET_OFFSET				(IP_PACKET_OFFSET + UDP_IP_HEADER_LENGTH)
-#define SSL_TX_PACKET_OFFSET				(TCP_TX_PACKET_OFFSET + TLS_RECORD_HEADER_LENGTH)
+#define TCP_TX_PACKET_OFFSET                (IP_PACKET_OFFSET + TCP_IP_HEADER_LENGTH)
+#define UDP_TX_PACKET_OFFSET                (IP_PACKET_OFFSET + UDP_IP_HEADER_LENGTH)
+#define SSL_TX_PACKET_OFFSET                (TCP_TX_PACKET_OFFSET + TLS_RECORD_HEADER_LENGTH)
 
-#define SOCKET_REQUEST(reqID, reqArgs, reqSize, reqPayload, reqPayloadSize, reqPayloadOffset)		\
-	hif_send(M2M_REQ_GROUP_IP, reqID, reqArgs, reqSize, reqPayload, reqPayloadSize, reqPayloadOffset)
+#define SOCKET_REQUEST(reqID, reqArgs, reqSize, reqPayload, reqPayloadSize, reqPayloadOffset)       \
+    hif_send(M2M_REQ_GROUP_IP, reqID, reqArgs, reqSize, reqPayload, reqPayloadSize, reqPayloadOffset)
 
 
 #define SSL_FLAGS_ACTIVE                    NBIT0
@@ -80,11 +80,11 @@ PRIVATE DATA TYPES
 /*!
 *  @brief
 */
-typedef struct{
-	SOCKET		sock;
-	uint8		u8Dummy;
-	uint16		u16SessionID;
-}tstrCloseCmd;
+typedef struct {
+    SOCKET      sock;
+    uint8       u8Dummy;
+    uint16      u16SessionID;
+} tstrCloseCmd;
 
 
 /*!
@@ -107,11 +107,11 @@ typedef struct {
 GLOBALS
 *=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
-volatile sint8					gsockerrno;
-volatile tstrSocket				gastrSockets[MAX_SOCKET];
-volatile uint8					gu8OpCode;
-volatile uint16					gu16BufferSize;
-volatile uint16					gu16SessionID = 0;	
+volatile sint8                  gsockerrno;
+volatile tstrSocket             gastrSockets[MAX_SOCKET];
+volatile uint8                  gu8OpCode;
+volatile uint16                 gu16BufferSize;
+volatile uint16                 gu16SessionID = 0;
 
 volatile tpfAppSocketCb         gpfAppSocketCb;
 volatile tpfAppResolveCb        gpfAppResolveCb;
@@ -122,23 +122,23 @@ static uint32                   gu32PingId = 0;
 
 /*********************************************************************
 Function
-		Socket_ReadSocketData
+        Socket_ReadSocketData
 
 Description
-		Callback function used by the NMC1500 driver to deliver messages
-		for socket layer.
+        Callback function used by the NMC1500 driver to deliver messages
+        for socket layer.
 
 Return
-		None.
+        None.
 
 Author
-		Ahmed Ezzat
+        Ahmed Ezzat
 
 Version
-		1.0
+        1.0
 
 Date
-		17 July 2012
+        17 July 2012
 *********************************************************************/
 NMI_API void Socket_ReadSocketData(SOCKET sock, tstrSocketRecvMsg *pstrRecv, uint8 u8SocketMsg,
                                    uint32 u32StartAddress, uint16 u16ReadCount)
@@ -180,30 +180,30 @@ NMI_API void Socket_ReadSocketData(SOCKET sock, tstrSocketRecvMsg *pstrRecv, uin
 
 /*********************************************************************
 Function
-		m2m_ip_cb
+        m2m_ip_cb
 
 Description
-		Callback function used by the NMC1000 driver to deliver messages
-		for socket layer.
+        Callback function used by the NMC1000 driver to deliver messages
+        for socket layer.
 
 Return
-		None.
+        None.
 
 Author
-		Ahmed Ezzat
+        Ahmed Ezzat
 
 Version
-		1.0
+        1.0
 
 Date
-		17 July 2012
+        17 July 2012
 *********************************************************************/
-static void m2m_ip_cb(uint8 u8OpCode, uint16 u16BufferSize,uint32 u32Address)
-{	
-	if((u8OpCode == SOCKET_CMD_BIND) || (u8OpCode == SOCKET_CMD_SSL_BIND))
-	{
-		tstrBindReply		strBindReply;
-		tstrSocketBindMsg	strBind;
+static void m2m_ip_cb(uint8 u8OpCode, uint16 u16BufferSize, uint32 u32Address)
+{
+    if((u8OpCode == SOCKET_CMD_BIND) || (u8OpCode == SOCKET_CMD_SSL_BIND))
+    {
+        tstrBindReply       strBindReply;
+        tstrSocketBindMsg   strBind;
 
         if(hif_receive(u32Address, (uint8 *)&strBindReply, sizeof(tstrBindReply), 0) == M2M_SUCCESS)
         {
@@ -235,11 +235,11 @@ static void m2m_ip_cb(uint8 u8OpCode, uint16 u16BufferSize,uint32 u32Address)
                 gastrSockets[strAcceptReply.sConnectedSock].bIsUsed         = 1;
                 gastrSockets[strAcceptReply.sConnectedSock].u16DataOffset   = strAcceptReply.u16AppDataOffset - M2M_HIF_HDR_OFFSET;
 
-				/* The session ID is used to distinguish different socket connections
-					by comparing the assigned session ID to the one reported by the firmware*/
-				++gu16SessionID;
-				if(gu16SessionID == 0)
-					++gu16SessionID;
+                /* The session ID is used to distinguish different socket connections
+                    by comparing the assigned session ID to the one reported by the firmware*/
+                ++gu16SessionID;
+                if(gu16SessionID == 0)
+                    ++gu16SessionID;
 
                 gastrSockets[strAcceptReply.sConnectedSock].u16SessionID = gu16SessionID;
                 M2M_DBG("Socket %d session ID = %d\r\n", strAcceptReply.sConnectedSock, gu16SessionID);
@@ -309,8 +309,8 @@ static void m2m_ip_cb(uint8 u8OpCode, uint16 u16BufferSize,uint32 u32Address)
         uint8               u8CallbackMsgID = SOCKET_MSG_RECV;
         uint16              u16DataOffset;
 
-		if(u8OpCode == SOCKET_CMD_RECVFROM)
-			u8CallbackMsgID = SOCKET_MSG_RECVFROM;
+        if(u8OpCode == SOCKET_CMD_RECVFROM)
+            u8CallbackMsgID = SOCKET_MSG_RECVFROM;
 
         /* Read RECV REPLY data structure.
         */
@@ -321,26 +321,26 @@ static void m2m_ip_cb(uint8 u8OpCode, uint16 u16BufferSize,uint32 u32Address)
             {
                 uint16 u16SessionID = 0;
 
-			sock			= strRecvReply.sock;
-			u16SessionID = strRecvReply.u16SessionID;
-			M2M_DBG("recv callback session ID = %d\r\n",u16SessionID);
-			
-			/* Reset the Socket RX Pending Flag.
-			*/
-			gastrSockets[sock].bIsRecvPending = 0;
+                sock            = strRecvReply.sock;
+                u16SessionID = strRecvReply.u16SessionID;
+                M2M_DBG("recv callback session ID = %d\r\n", u16SessionID);
 
-			s16RecvStatus	= NM_BSP_B_L_16(strRecvReply.s16RecvStatus);
-			u16DataOffset	= NM_BSP_B_L_16(strRecvReply.u16DataOffset);
-			strRecvMsg.strRemoteAddr.sin_port 			= strRecvReply.strRemoteAddr.u16Port;
-			strRecvMsg.strRemoteAddr.sin_addr.s_addr 	= strRecvReply.strRemoteAddr.u32IPAddr;
+                /* Reset the Socket RX Pending Flag.
+                */
+                gastrSockets[sock].bIsRecvPending = 0;
 
-			if(u16SessionID == gastrSockets[sock].u16SessionID)
-			{
-				if((s16RecvStatus > 0) && (s16RecvStatus < u16BufferSize))
-				{
-					/* Skip incoming bytes until reaching the Start of Application Data. 
-					*/
-					u32Address += u16DataOffset;
+                s16RecvStatus   = NM_BSP_B_L_16(strRecvReply.s16RecvStatus);
+                u16DataOffset   = NM_BSP_B_L_16(strRecvReply.u16DataOffset);
+                strRecvMsg.strRemoteAddr.sin_port           = strRecvReply.strRemoteAddr.u16Port;
+                strRecvMsg.strRemoteAddr.sin_addr.s_addr    = strRecvReply.strRemoteAddr.u32IPAddr;
+
+                if(u16SessionID == gastrSockets[sock].u16SessionID)
+                {
+                    if((s16RecvStatus > 0) && (s16RecvStatus < u16BufferSize))
+                    {
+                        /* Skip incoming bytes until reaching the Start of Application Data.
+                        */
+                        u32Address += u16DataOffset;
 
                         /* Read the Application data and deliver it to the application callback in
                         the given application buffer. Firmware since 19.6.4 only sends data up to
@@ -437,13 +437,13 @@ Date
 *********************************************************************/
 void socketInit(void)
 {
-	if(gbSocketInit == 0)
-	{
-		m2m_memset((uint8*)gastrSockets, 0, MAX_SOCKET * sizeof(tstrSocket));
-		hif_register_cb(M2M_REQ_GROUP_IP,m2m_ip_cb);
-		gbSocketInit	= 1;
-		gu16SessionID	= 0;
-	}
+    if(gbSocketInit == 0)
+    {
+        m2m_memset((uint8 *)gastrSockets, 0, MAX_SOCKET * sizeof(tstrSocket));
+        hif_register_cb(M2M_REQ_GROUP_IP, m2m_ip_cb);
+        gbSocketInit    = 1;
+        gu16SessionID   = 0;
+    }
 }
 
 /*********************************************************************
