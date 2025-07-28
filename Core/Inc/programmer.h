@@ -17,8 +17,7 @@
 #include "bus_wrapper/include/nm_bus_wrapper.h"
 #include "driver/source/nmbus.h"
 #include "spi_flash_map.h"
-#include "spi_flash_map_v0.h"
-#include "firmware_addresses.h"
+
 #include "driver/source/nmasic.h"
 #include "driver/source/nmdrv.h"
 

@@ -60,6 +60,7 @@
 									<listOptionValue builtIn="false" value="NM_EDGE_INTERRUPT"/>
 									<listOptionValue builtIn="false" value="USE_SPI"/>
 									<listOptionValue builtIn="false" value="CONF_WINC_USE_SPI"/>
+									<listOptionValue builtIn="false" value="BUILD_CERT"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths.1638513531" name="Include paths (-I)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="../Core/Inc"/>

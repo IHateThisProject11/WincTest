@@ -9,7 +9,6 @@
 //#include "../efuse/efuse.h"
 #include "programmer.h"
 #include "spi_flash/include/spi_flash.h"
-#include "firmware_addresses.h"
 #include "driver/source/nmuart.h"
 
 #define UART_HIGH_RATE  (500000UL)
