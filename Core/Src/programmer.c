@@ -11,6 +11,8 @@
 #include "spi_flash/include/spi_flash.h"
 #include "driver/source/nmuart.h"
 
+
+
 #define UART_HIGH_RATE  (500000UL)
 #define UART_LOW_RATE	(115200UL)
 #define TIMEOUT  10000

@@ -28,8 +28,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "core_cm33.h"          /* gives ITM_SendChar                */
-#include "bootloader_update.h"
-
+//#include "bootloader_update.h"
+//#include "m2m_image_3A0.h"
 
 
 
@@ -105,13 +105,13 @@ int main(void)
   ITM_Init();
   M2M_ERR("TEST: nm_debug route OK\r\n");
 
-#ifdef DO_FLASH_UPDATE
-    if (bootloader_update_flash() != M2M_SUCCESS) {
-        /* you can blink an LED or while(1); here on failure */
-        Error_Handler();
-    }
-    /* comment-out DO_FLASH_UPDATE after the first successful run */
-#endif
+//#ifdef DO_FLASH_UPDATE
+//    if (bootloader_update_flash() != M2M_SUCCESS) {
+//        /* you can blink an LED or while(1); here on failure */
+//        Error_Handler();
+//    }
+//    /* comment-out DO_FLASH_UPDATE after the first successful run */
+//#endif
 
   /* USER CODE END SysInit */
 
