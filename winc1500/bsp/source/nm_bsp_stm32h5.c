@@ -49,7 +49,6 @@
 
 
 
-
 /*
  *	@fn		init_chip_pins
  *	@brief	Initialize reset, chip enable and wake pin
@@ -185,7 +184,7 @@ void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
     GPIO_InitTypeDef GPIO_InitStruct;
 
 
-     __GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
 	 //__GPIOA_CLK_ENABLE();
 
     /*Configure GPIO pin : PA4 */
@@ -209,7 +208,7 @@ void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
 	
 	/* Configure PC.13 pin as input floating */
 	GPIO_InitStructure.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStructure.Pull = GPIO_NOPULL;
+	GPIO_InitStructure.Pull = GPIO_PULLUP;
 	GPIO_InitStructure.Pin = GPIO_PIN_13;
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStructure);
 	
