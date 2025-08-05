@@ -12,6 +12,8 @@ void WifiTask_Init(void)
 
 void WifiTask_Tick(void)
 {
+    M2M_INFO(">>> WINC1500_ISR_cb()\r\n");
+
     // call as often as possible to service the WINC
     m2m_wifi_handle_events(NULL);
 }

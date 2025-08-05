@@ -134,6 +134,8 @@ void WifiApp_InitAP(void)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   if (GPIO_Pin == GPIO_PIN_4) {
+    M2M_INFO(">>> HAL_GPIO_EXTI_Callback pin=%u\r\n", GPIO_Pin);
+    WINC1500_ISR_cb();        // <-- process the SPI host interrupt
     M2M_INFO("nIRQ fired! waking driver…\r\n");
     m2m_wifi_handle_events(NULL);
   }
