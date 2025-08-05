@@ -60,7 +60,7 @@
 
 /* Declare STM32 SPIx communication handler variable to winc1500 */
 //SPI_HandleTypeDef hspi;
-extern SPI_HandleTypeDef hspi1;
+extern SPI_HandleTypeDef SPI_WIFI_HANDLE;
 /* spi_rw variables */
 static uint8 spiDummyBuf[300] = {0};
 
@@ -123,7 +123,7 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
 	while (u16Sz) {
 		txd_data = *pu8Mosi;
 		//printf("\nsend %d",txd_data);
-		HAL_SPI_TransmitReceive(&hspi,&txd_data,&rxd_data,1,1000);
+		HAL_SPI_TransmitReceive(&SPI_WIFI_HANDLE ,&txd_data,&rxd_data,1,1000);
 		//HAL_SPI_Transmit(&hspi1,&txd_data,1,1000);
 		//HAL_SPI_Receive(&hspi1,&rxd_data,1,1000);
 //		while (!spi_is_ready_to_write(&master))
@@ -202,9 +202,10 @@ sint8 nm_spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
 }
 
 
-void nm_bus_wifi_spi_init(SPI_HandleTypeDef *hspi)
+void nm_bus_wifi_spi_init(SPI_HandleTypeDef *SPI_WIFI_HANDLE )
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
+
 
     /* Peripheral clock enable */
     SPI_WIFI_CLK_ENABLE();
@@ -237,33 +238,40 @@ void nm_bus_wifi_spi_init(SPI_HandleTypeDef *hspi)
 *	@brief	Initialize the bus wrapper
 *	@return	M2M_SUCCESS in case of success and M2M_ERR_BUS_FAIL in case of failure
 */
+//Commenting out for now
+//sint8 nm_bus_init(void *pvinit)
+//{
+//	sint8 result = M2M_SUCCESS;
+//
+//	 /* WiFi SPI init function - called from nm_bus_init() */
+//
+//	SPI_WIFI_HANDLE.Instance			   = SPI_WIFI;
+//	SPI_WIFI_HANDLE.Init.Mode			   = SPI_MODE_MASTER;
+//	SPI_WIFI_HANDLE.Init.Direction 	   = SPI_DIRECTION_2LINES;
+//	SPI_WIFI_HANDLE.Init.DataSize		   = SPI_DATASIZE_8BIT;
+//	SPI_WIFI_HANDLE.Init.CLKPolarity	   = SPI_POLARITY_LOW;
+//	SPI_WIFI_HANDLE.Init.CLKPhase		   = SPI_PHASE_1EDGE;
+//	SPI_WIFI_HANDLE.Init.NSS			   = SPI_NSS_SOFT;
+//	SPI_WIFI_HANDLE.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
+//	SPI_WIFI_HANDLE.Init.FirstBit		   = SPI_FIRSTBIT_MSB;
+//	SPI_WIFI_HANDLE.Init.TIMode		   = SPI_TIMODE_DISABLE;
+//	SPI_WIFI_HANDLE.Init.CRCCalculation   = SPI_CRCCALCULATION_DISABLE;
+//	SPI_WIFI_HANDLE.Init.CRCPolynomial    = 10;
+////	  hspi.Init.CRCLength		 = SPI_CRC_LENGTH_DATASIZE;
+////	  hspi.Init.NSSPMode		 = SPI_NSS_PULSE_DISABLE;
+//	if (HAL_SPI_Init(&SPI_WIFI_HANDLE) != HAL_OK)
+//	{
+//		M2M_ERR("SPI bus Initialization error\r\n");
+//	}
+//
+//	HAL_SPI_MspInit(&SPI_WIFI_HANDLE);
+//	return result;
+//}
+//temporary fix
 sint8 nm_bus_init(void *pvinit)
 {
-	sint8 result = M2M_SUCCESS;
-
-	 /* WiFi SPI init function - called from nm_bus_init() */
-
-	SPI_WIFI_HANDLE.Instance			   = SPI_WIFI;
-	SPI_WIFI_HANDLE.Init.Mode			   = SPI_MODE_MASTER;
-	SPI_WIFI_HANDLE.Init.Direction 	   = SPI_DIRECTION_2LINES;
-	SPI_WIFI_HANDLE.Init.DataSize		   = SPI_DATASIZE_8BIT;
-	SPI_WIFI_HANDLE.Init.CLKPolarity	   = SPI_POLARITY_LOW;
-	SPI_WIFI_HANDLE.Init.CLKPhase		   = SPI_PHASE_1EDGE;
-	SPI_WIFI_HANDLE.Init.NSS			   = SPI_NSS_SOFT;
-	SPI_WIFI_HANDLE.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
-	SPI_WIFI_HANDLE.Init.FirstBit		   = SPI_FIRSTBIT_MSB;
-	SPI_WIFI_HANDLE.Init.TIMode		   = SPI_TIMODE_DISABLE;
-	SPI_WIFI_HANDLE.Init.CRCCalculation   = SPI_CRCCALCULATION_DISABLE;
-	SPI_WIFI_HANDLE.Init.CRCPolynomial    = 10;
-//	  hspi.Init.CRCLength		 = SPI_CRC_LENGTH_DATASIZE;
-//	  hspi.Init.NSSPMode		 = SPI_NSS_PULSE_DISABLE;
-	if (HAL_SPI_Init(&SPI_WIFI_HANDLE) != HAL_OK)
-	{
-		M2M_ERR("SPI bus Initialization error\r\n");
-	}
-
-	HAL_SPI_MspInit(&SPI_WIFI_HANDLE);
-	return result;
+    nm_bus_wifi_spi_init(NULL);
+    return M2M_SUCCESS;
 }
 
 
