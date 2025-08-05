@@ -115,28 +115,21 @@ void WifiApp_InitAP(void)
     } else {
         printf("Connecting to %s …\r\n", MAIN_WLAN_SSID);
     }
-    printf("m2m_wifi_connect() returned %d\r\n", ret);
 
 }
 
 /**
  * @brief EXTI line 4 interrupt handler for WINC IRQ.
  */
-void EXTI4_IRQHandler(void)
-{
-    /* Clear and handle interrupt */
-    if (__HAL_GPIO_EXTI_GET_IT(WINC_INT_PIN) != RESET) {
-        __HAL_GPIO_EXTI_CLEAR_IT(WINC_INT_PIN);
-        HAL_GPIO_EXTI_IRQHandler(WINC_INT_PIN);
-    }
-}
 
 /**
  * @brief HAL EXTI callback forwarding to WINC driver.
  */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == WINC_INT_PIN) {
-        isr();
-    }
+  if (GPIO_Pin == GPIO_PIN_4) {
+    M2M_INFO("nIRQ fired! waking driver…\r\n");
+    m2m_wifi_handle_events(NULL);
+  }
 }
+
