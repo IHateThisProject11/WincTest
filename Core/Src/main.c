@@ -67,11 +67,7 @@ static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_ICACHE_Init(void);
 /* USER CODE BEGIN PFP */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-    if (GPIO_Pin == CONF_WINC_SPI_INT_PIN)
-        WINC1500_ISR_cb();   // your wrapper that calls hif_handle_isr()
-}
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
