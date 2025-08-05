@@ -45,6 +45,7 @@
 #include "stm32h5xx_hal.h"
 //#include "cmsis_os.h"
 #include "conf_winc.h"
+#include "stm32h5xx_hal.h"      /* <- add this line */
 
 
 
@@ -183,21 +184,20 @@ void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
 {
     GPIO_InitTypeDef GPIO_InitStruct;
 
-    /* EXTI2 init ISR function - called from nm_bsp_register_isr() */
 
      __GPIOC_CLK_ENABLE();
 	 //__GPIOA_CLK_ENABLE();
 
-    /*Configure GPIO pin : PA2 */
+    /*Configure GPIO pin : PA4 */
     GPIO_InitStruct.Pin   = CONF_WINC_SPI_INT_PIN;
     GPIO_InitStruct.Mode  = GPIO_MODE_IT_FALLING;
-    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Pull  = GPIO_PULLUP;
     HAL_GPIO_Init(CONF_WINC_SPI_INT_PORT, &GPIO_InitStruct);
     HAL_NVIC_SetPriority(CONF_WINC_EXTI_IRQN, 1, 0);
     HAL_NVIC_EnableIRQ(CONF_WINC_EXTI_IRQN);
 
 
-    /* EXTI 2 (PA2) interrupt init*/
+    /* EXTI 2 (PA4) interrupt init*/
     HAL_NVIC_SetPriority(CONF_WINC_EXTI_IRQN, 0x00, 0);
     HAL_NVIC_EnableIRQ(CONF_WINC_EXTI_IRQN);
 
