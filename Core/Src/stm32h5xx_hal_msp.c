@@ -122,9 +122,14 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
     GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
     HAL_GPIO_Init(WINC_MISO_GPIO_Port, &GPIO_InitStruct);
 
-    /* USER CODE BEGIN SPI1_MspInit 1 */
-
-    /* USER CODE END SPI1_MspInit 1 */
+//    /* USER CODE BEGIN SPI1_MspInit 1 */
+//    GPIO_InitStruct.Pin       = WINK_SCK_Pin | WINC_MOSI_Pin;
+//    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+//    GPIO_InitStruct.Pull      = GPIO_NOPULL;
+//    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
+//    GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
+//    HAL_GPIO_Init(WINK_SCK_GPIO_Port, &GPIO_InitStruct);
+//    /* USER CODE END SPI1_MspInit 1 */
   }
   else if(hspi->Instance==SPI2)
   {

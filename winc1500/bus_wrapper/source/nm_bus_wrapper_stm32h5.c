@@ -59,8 +59,8 @@
 #define NM_BUS_MAX_TRX_SZ	256
 
 /* Declare STM32 SPIx communication handler variable to winc1500 */
-SPI_HandleTypeDef hspi;
-
+//SPI_HandleTypeDef hspi;
+extern SPI_HandleTypeDef hspi1;
 /* spi_rw variables */
 static uint8 spiDummyBuf[300] = {0};
 
@@ -167,16 +167,16 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
     /* Transmit/Recieve */
     if (pu8Mosi == NULL)
 	{
-		status = HAL_SPI_TransmitReceive(&hspi,spiDummyBuf,pu8Miso,u16Sz,1000);
+		status = HAL_SPI_TransmitReceive(&SPI_WIFI_HANDLE,spiDummyBuf,pu8Miso,u16Sz,1000);
     }
     else if(pu8Miso == NULL)
     {
-        status = HAL_SPI_TransmitReceive(&hspi,pu8Mosi,spiDummyBuf,u16Sz,1000);
+        status = HAL_SPI_TransmitReceive(&SPI_WIFI_HANDLE,pu8Mosi,spiDummyBuf,u16Sz,1000);
         memset(spiDummyBuf,0, u16Sz);
     }
     else
     {     
-        status = HAL_SPI_TransmitReceive(&hspi,pu8Mosi,pu8Miso,u16Sz,1000);
+        status = HAL_SPI_TransmitReceive(&SPI_WIFI_HANDLE,pu8Mosi,pu8Miso,u16Sz,1000);
     } 
     
     /* Handle Transmit/Recieve error */
@@ -209,26 +209,26 @@ void nm_bus_wifi_spi_init(SPI_HandleTypeDef *hspi)
     /* Peripheral clock enable */
     SPI_WIFI_CLK_ENABLE();
 
-    /* Configure GPIO pin : PA4 - we are using ST GPIO definitions for winc1500 */
+    /* ------------------------------------------------------------------
+     * Chip-select  (PC5 →  WINC1500 nCS)
+     * ------------------------------------------------------------------ */
     GPIO_InitStruct.Pin   = SPI_WIFI_CS_PIN;
     GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull  = GPIO_PULLUP;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-    GPIO_InitStruct.Alternate = 0;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-    HAL_GPIO_WritePin(SPI_WIFI_CS_GPIO_PORT,SPI_WIFI_CS_PIN,GPIO_PIN_SET);
+    HAL_GPIO_Init(SPI_WIFI_CS_GPIO_PORT, &GPIO_InitStruct);   /* now GPIOC */
+    HAL_GPIO_WritePin(SPI_WIFI_CS_GPIO_PORT, SPI_WIFI_CS_PIN, GPIO_PIN_SET);
 
-    /**SPIx GPIO Configuration
-    PB3     ------> SPI_WIFI_SCK
-    PB4     ------> SPI_WIFI_MISO
-    PB5     ------> SPI_WIFI_MOSI
-    */
-    GPIO_InitStruct.Pin = SPI_WIFI_SCK_PIN|SPI_WIFI_MISO_PIN|SPI_WIFI_MOSI_PIN;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-    GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-   GPIO_InitStruct.Alternate = SPI3_WIFI_AF;
-    HAL_GPIO_Init(SPI_WIFI_MOSI_GPIO_PORT, &GPIO_InitStruct);
+    /* ------------------------------------------------------------------
+     * SPI1 on PA5/PA6/PA7  (AF5)  →  WINC1500 SCK/MISO/MOSI
+     * ------------------------------------------------------------------ */
+    GPIO_InitStruct.Pin       = SPI_WIFI_SCK_PIN | SPI_WIFI_MISO_PIN | SPI_WIFI_MOSI_PIN;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull      = GPIO_NOPULL;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+    GPIO_InitStruct.Alternate = SPI_WIFI_AF;                  /* AF5-SPI1 */
+    HAL_GPIO_Init(SPI_WIFI_SCK_GPIO_PORT, &GPIO_InitStruct);
+
 }
 
 
@@ -243,26 +243,26 @@ sint8 nm_bus_init(void *pvinit)
 
 	 /* WiFi SPI init function - called from nm_bus_init() */
 
-	hspi.Instance			   = SPI_WIFI;
-	hspi.Init.Mode			   = SPI_MODE_MASTER;
-	hspi.Init.Direction 	   = SPI_DIRECTION_2LINES;
-	hspi.Init.DataSize		   = SPI_DATASIZE_8BIT;
-	hspi.Init.CLKPolarity	   = SPI_POLARITY_LOW;
-	hspi.Init.CLKPhase		   = SPI_PHASE_1EDGE;
-	hspi.Init.NSS			   = SPI_NSS_SOFT;
-	hspi.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
-	hspi.Init.FirstBit		   = SPI_FIRSTBIT_MSB;
-	hspi.Init.TIMode		   = SPI_TIMODE_DISABLE;
-	hspi.Init.CRCCalculation   = SPI_CRCCALCULATION_DISABLE;
-	hspi.Init.CRCPolynomial    = 10;
+	SPI_WIFI_HANDLE.Instance			   = SPI_WIFI;
+	SPI_WIFI_HANDLE.Init.Mode			   = SPI_MODE_MASTER;
+	SPI_WIFI_HANDLE.Init.Direction 	   = SPI_DIRECTION_2LINES;
+	SPI_WIFI_HANDLE.Init.DataSize		   = SPI_DATASIZE_8BIT;
+	SPI_WIFI_HANDLE.Init.CLKPolarity	   = SPI_POLARITY_LOW;
+	SPI_WIFI_HANDLE.Init.CLKPhase		   = SPI_PHASE_1EDGE;
+	SPI_WIFI_HANDLE.Init.NSS			   = SPI_NSS_SOFT;
+	SPI_WIFI_HANDLE.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
+	SPI_WIFI_HANDLE.Init.FirstBit		   = SPI_FIRSTBIT_MSB;
+	SPI_WIFI_HANDLE.Init.TIMode		   = SPI_TIMODE_DISABLE;
+	SPI_WIFI_HANDLE.Init.CRCCalculation   = SPI_CRCCALCULATION_DISABLE;
+	SPI_WIFI_HANDLE.Init.CRCPolynomial    = 10;
 //	  hspi.Init.CRCLength		 = SPI_CRC_LENGTH_DATASIZE;
 //	  hspi.Init.NSSPMode		 = SPI_NSS_PULSE_DISABLE;
-	if (HAL_SPI_Init(&hspi) != HAL_OK)
+	if (HAL_SPI_Init(&SPI_WIFI_HANDLE) != HAL_OK)
 	{
 		M2M_ERR("SPI bus Initialization error\r\n");
 	}
 
-	HAL_SPI_MspInit(&hspi);
+	HAL_SPI_MspInit(&SPI_WIFI_HANDLE);
 	return result;
 }
 
