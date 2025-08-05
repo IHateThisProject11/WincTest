@@ -8,9 +8,13 @@
 #include "m2m_wifi.h"
 #include "nm_bsp.h"
 #include "socket.h"
+#include "m2m_hif.h"        // for hif_handle_isr()
 
 /* External interrupt service routine from bus wrapper */
-extern void isr(void);
+static void WINC1500_ISR_cb(void)
+{
+    (void)hif_handle_isr();
+}
 
 /**
  * @brief Wi-Fi event callback.
@@ -93,6 +97,8 @@ void WifiApp_InitAP(void)
 {
     /* 1. Bring up HAL/BSP */
     nm_bsp_init();
+    nm_bsp_register_isr(WINC1500_ISR_cb);
+    nm_bsp_interrupt_ctrl(1);
 
     /* 2. Initialise driver and register wifi_cb() */
     tstrWifiInitParam initParam;

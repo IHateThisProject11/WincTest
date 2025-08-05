@@ -26,6 +26,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "core_cm33.h"          /* gives ITM_SendChar                */
+#include "stm32h5xx_ll_bus.h"
 
 
 
@@ -66,7 +67,11 @@ static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_ICACHE_Init(void);
 /* USER CODE BEGIN PFP */
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if (GPIO_Pin == CONF_WINC_SPI_INT_PIN)
+        WINC1500_ISR_cb();   // your wrapper that calls hif_handle_isr()
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -366,7 +371,6 @@ static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
-
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
