@@ -8,10 +8,10 @@
 #include "m2m_wifi.h"
 #include "nm_bsp.h"
 #include "socket.h"
-
+#include "nm_bsp.h"
 /* External interrupt service routine from bus wrapper */
 extern void isr(void);
-static tpfNmBspIsr gpfIsr;
+extern void nm_bsp_call_isr(void); /* declared in the BSP */
 
 /**
  * @brief Wi-Fi event callback.
@@ -133,8 +133,8 @@ void WifiApp_InitAP(void)
 /**
  * @brief HAL EXTI callback forwarding to WINC driver.
  */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == CONF_WINC_IRQ_PIN && gpfIsr)
-        gpfIsr();
+    if (GPIO_Pin == CONF_WINC_IRQ_PIN)
+        nm_bsp_call_isr();     // invokes the driver’s stored ISR
 }

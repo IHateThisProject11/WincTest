@@ -47,6 +47,7 @@
 #include "conf_winc.h"
 
 
+static tpfNmBspIsr gpfIsr;   /* lives only in this file */
 
 
 /*
@@ -182,6 +183,7 @@ void nm_bsp_sleep(uint32 u32TimeMsec)
 void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
 {
     GPIO_InitTypeDef GPIO_InitStruct;
+    gpfIsr = pfIsr;
 
     /* EXTI2 init ISR function - called from nm_bsp_register_isr() */
      __GPIOC_CLK_ENABLE();
@@ -219,7 +221,10 @@ void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
 
 }
 
-
+void nm_bsp_call_isr(void)    /* lightweight trampoline */
+{
+    if (gpfIsr) gpfIsr();
+}
 /*
  *	@fn		nm_bsp_interrupt_ctrl
  *	@brief	Enable/Disable interrupts

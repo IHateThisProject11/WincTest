@@ -26,8 +26,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "core_cm33.h"          /* gives ITM_SendChar                */
-
-
+#include "stm32_hal_legacy.h"
+#include "stm32h5xx_hal.h"
 
 
 /* USER CODE END Includes */
@@ -101,7 +101,7 @@ int main(void)
   /* USER CODE BEGIN SysInit */
   ITM_Init();
   M2M_ERR("TEST: nm_debug route OK\r\n");
-
+  __HAL_RCC_SBS_CLK_ENABLE();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -422,6 +422,7 @@ static void MX_GPIO_Init(void)
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
+  //__HAL_RCC_SYSCFG_CLK_ENABLE();
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
