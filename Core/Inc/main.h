@@ -72,6 +72,7 @@ void Error_Handler(void);
 #define WINC_MOSI_GPIO_Port GPIOA
 #define IRQ_WINC_PIN_Pin GPIO_PIN_4
 #define IRQ_WINC_PIN_GPIO_Port GPIOC
+#define IRQ_WINC_PIN_EXTI_IRQn EXTI4_IRQn
 #define CS_WINC_Pin GPIO_PIN_5
 #define CS_WINC_GPIO_Port GPIOC
 #define RESET_WINC_Pin GPIO_PIN_0

@@ -184,11 +184,10 @@ void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
     GPIO_InitTypeDef GPIO_InitStruct;
 
     /* EXTI2 init ISR function - called from nm_bsp_register_isr() */
-
      __GPIOC_CLK_ENABLE();
 	 //__GPIOA_CLK_ENABLE();
 
-    /*Configure GPIO pin : PA2 */
+    /*Configure GPIO pin : PC$ */
     GPIO_InitStruct.Pin   = CONF_WINC_SPI_INT_PIN;
     GPIO_InitStruct.Mode  = GPIO_MODE_IT_FALLING;
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
@@ -197,7 +196,7 @@ void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
     HAL_NVIC_EnableIRQ(CONF_WINC_EXTI_IRQN);
 
 
-    /* EXTI 2 (PA2) interrupt init*/
+    /* EXTI 2 (PC4) interrupt init*/
     HAL_NVIC_SetPriority(CONF_WINC_EXTI_IRQN, 0x00, 0);
     HAL_NVIC_EnableIRQ(CONF_WINC_EXTI_IRQN);
 
@@ -219,6 +218,7 @@ void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
 #endif
 
 }
+
 
 /*
  *	@fn		nm_bsp_interrupt_ctrl

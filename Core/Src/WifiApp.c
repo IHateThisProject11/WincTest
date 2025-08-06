@@ -11,6 +11,7 @@
 
 /* External interrupt service routine from bus wrapper */
 extern void isr(void);
+static tpfNmBspIsr gpfIsr;
 
 /**
  * @brief Wi-Fi event callback.
@@ -118,23 +119,22 @@ void WifiApp_InitAP(void)
 }
 
 /**
- * @brief EXTI line 4 interrupt handler for WINC IRQ.
- */
-void EXTI4_IRQHandler(void)
-{
-    /* Clear and handle interrupt */
-    if (__HAL_GPIO_EXTI_GET_IT(WINC_INT_PIN) != RESET) {
-        __HAL_GPIO_EXTI_CLEAR_IT(WINC_INT_PIN);
-        HAL_GPIO_EXTI_IRQHandler(WINC_INT_PIN);
-    }
-}
+// * @brief EXTI line 4 interrupt handler for WINC IRQ.
+// */
+//void EXTI4_IRQHandler(void)
+//{
+//    /* Clear and handle interrupt */
+//    if (__HAL_GPIO_EXTI_GET_IT(WINC_INT_PIN) != RESET) {
+//        __HAL_GPIO_EXTI_CLEAR_IT(WINC_INT_PIN);
+//        HAL_GPIO_EXTI_IRQHandler(WINC_INT_PIN);
+//    }
+//}
 
 /**
  * @brief HAL EXTI callback forwarding to WINC driver.
  */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == WINC_INT_PIN) {
-        isr();
-    }
+    if (GPIO_Pin == CONF_WINC_IRQ_PIN && gpfIsr)
+        gpfIsr();
 }

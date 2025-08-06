@@ -238,7 +238,7 @@ void nm_bus_wifi_spi_init(SPI_HandleTypeDef *SPI_WIFI_HANDLE )
 *	@brief	Initialize the bus wrapper
 *	@return	M2M_SUCCESS in case of success and M2M_ERR_BUS_FAIL in case of failure
 */
-//Commenting out for now
+
 //sint8 nm_bus_init(void *pvinit)
 //{
 //	sint8 result = M2M_SUCCESS;
@@ -257,8 +257,8 @@ void nm_bus_wifi_spi_init(SPI_HandleTypeDef *SPI_WIFI_HANDLE )
 //	SPI_WIFI_HANDLE.Init.TIMode		   = SPI_TIMODE_DISABLE;
 //	SPI_WIFI_HANDLE.Init.CRCCalculation   = SPI_CRCCALCULATION_DISABLE;
 //	SPI_WIFI_HANDLE.Init.CRCPolynomial    = 10;
-////	  hspi.Init.CRCLength		 = SPI_CRC_LENGTH_DATASIZE;
-////	  hspi.Init.NSSPMode		 = SPI_NSS_PULSE_DISABLE;
+//	SPI_WIFI_HANDLE.Init.CRCLength		 = SPI_CRC_LENGTH_DATASIZE;
+//	SPI_WIFI_HANDLE.Init.NSSPMode		 = SPI_NSS_PULSE_DISABLE;
 //	if (HAL_SPI_Init(&SPI_WIFI_HANDLE) != HAL_OK)
 //	{
 //		M2M_ERR("SPI bus Initialization error\r\n");
@@ -270,11 +270,9 @@ void nm_bus_wifi_spi_init(SPI_HandleTypeDef *SPI_WIFI_HANDLE )
 //temporary fix
 sint8 nm_bus_init(void *pvinit)
 {
-    nm_bus_wifi_spi_init(NULL);
+    nm_bus_wifi_spi_init(NULL);        // <-- only GPIO, no SPI!
     return M2M_SUCCESS;
 }
-
-
 /*
 *	@fn		nm_bus_ioctl
 *	@brief	send/receive from the bus
