@@ -60,10 +60,6 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SDCARD_MOSI_Pin GPIO_PIN_1
-#define SDCARD_MOSI_GPIO_Port GPIOC
-#define SDCARD_MISO_Pin GPIO_PIN_2
-#define SDCARD_MISO_GPIO_Port GPIOC
 #define WINK_SCK_Pin GPIO_PIN_5
 #define WINK_SCK_GPIO_Port GPIOA
 #define WINC_MISO_Pin GPIO_PIN_6
@@ -79,10 +75,14 @@ void Error_Handler(void);
 #define RESET_WINC_GPIO_Port GPIOB
 #define CHIP_EN_WINC_Pin GPIO_PIN_1
 #define CHIP_EN_WINC_GPIO_Port GPIOB
-#define SDCARD_SCK_Pin GPIO_PIN_10
-#define SDCARD_SCK_GPIO_Port GPIOB
-#define SDCARD_CS_Pin GPIO_PIN_8
-#define SDCARD_CS_GPIO_Port GPIOB
+#define SD_MISO_Pin GPIO_PIN_4
+#define SD_MISO_GPIO_Port GPIOB
+#define SD_MOSI_Pin GPIO_PIN_5
+#define SD_MOSI_GPIO_Port GPIOB
+#define SD_CS_Pin GPIO_PIN_6
+#define SD_CS_GPIO_Port GPIOB
+#define SD_SCK_Pin GPIO_PIN_7
+#define SD_SCK_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
