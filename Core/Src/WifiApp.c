@@ -23,7 +23,8 @@ void wifi_cb(uint8_t u8MsgType, void *pvMsg)
     {
         tstrM2mWifiStateChanged *pstrWifiState = (tstrM2mWifiStateChanged *)pvMsg;
         if (pstrWifiState->u8CurrState == M2M_WIFI_CONNECTED) {
-            // Station connected
+
+            m2m_wifi_request_scan(M2M_WIFI_CH_ALL);
         } else if (pstrWifiState->u8CurrState == M2M_WIFI_DISCONNECTED) {
             printf("Station disconnected\r\n");
         }
@@ -40,6 +41,7 @@ void wifi_cb(uint8_t u8MsgType, void *pvMsg)
     case M2M_WIFI_REQ_DHCP_CONF:
     {
         uint8_t *ip = (uint8_t*)pvMsg;
+        printf("Station connected\r\n");
         printf("DHCP - IP address is %u.%u.%u.%u\r\n",
                 ip[0], ip[1], ip[2], ip[3]);
         break;
