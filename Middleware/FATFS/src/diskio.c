@@ -5,6 +5,10 @@
 
 extern SPI_HandleTypeDef hspi3; /* your SPI3 handle */
 
+/* Block (sector) vs byte addressing flag: 1 = block addressing (SDHC/SDXC) */
+static uint8_t CardType = 0;
+
+
 #define SDCARD_CS_LOW()  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET)
 #define SDCARD_CS_HIGH() HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET)
 
@@ -119,9 +123,20 @@ DSTATUS disk_initialize(BYTE pdrv) {
 
     /* CMD58: read OCR */
     if (send_cmd(58, 0) != 0x00) goto init_fail;
-    /* discard OCR */
-    spi_xfer(0xFF); spi_xfer(0xFF);
-    spi_xfer(0xFF); spi_xfer(0xFF);
+
+    /* Read OCR bytes into an array */
+    uint8_t ocr[4];
+    for (int i = 0; i < 4; i++) {
+        ocr[i] = spi_xfer(0xFF);
+    }
+
+    /* CCS bit (bit6 of OCR[0]) = 1 means SDHC/SDXC (block addressing) */
+    if (ocr[0] & 0x40) {
+        CardType = 1;
+    } else {
+        CardType = 0;
+    }
+
 
     Stat &= ~STA_NOINIT;
     SDCARD_CS_HIGH();
@@ -132,6 +147,18 @@ init_fail:
     SDCARD_CS_HIGH();
     spi_xfer(0xFF);
     return STA_NOINIT;
+}
+
+
+/**
+ *  Return the argument to send_cmd():
+ *   - Block address if SDHC/SDXC
+ *   - Byte address if legacy SDSC
+ */
+static inline uint32_t sd_addr(LBA_t sector)
+{
+    return CardType ? sector        /* SDHC/SDXC: block address */
+                    : sector * 512;  /* SDSC:    byte  address */
 }
 
 /*-----------------------------------------------------------------------*/
@@ -149,7 +176,7 @@ DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count) {
     if (Stat & STA_NOINIT) return RES_NOTRDY;
 
     if (count == 1) {
-        if (send_cmd(17, sector * 512) == 0 && rcvr_datablock(buff))
+        if (send_cmd(17, sd_addr(sector)) == 0 && rcvr_datablock(buff))
             count = 0;
     } else {
         return RES_PARERR;  /* multi-block not implemented */
@@ -170,22 +197,21 @@ DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count) {
 
     if (count == 1) {
         /* CMD24: write single */
-        if (send_cmd(24, sector * 512) == 0) {
+        if (send_cmd(24, sd_addr(sector)) == 0) {
             spi_xfer(0xFF);
             spi_xfer(0xFE);          /* data token */
-            /* send data */
             HAL_SPI_Transmit(&hspi3, (uint8_t*)buff, 512, HAL_MAX_DELAY);
-            /* dummy CRC */
-            spi_xfer(0xFF); spi_xfer(0xFF);
-            /* data response */
+            spi_xfer(0xFF); spi_xfer(0xFF);  /* dummy CRC */
+            /* check data response token */
             if ((spi_xfer(0xFF) & 0x1F) == 0x05) {
-                /* wait write complete */
+                /* wait until write is done */
                 while (spi_xfer(0xFF) == 0) ;
             }
         }
     } else {
         return RES_PARERR;
     }
+
 
     SDCARD_CS_HIGH();
     spi_xfer(0xFF);
