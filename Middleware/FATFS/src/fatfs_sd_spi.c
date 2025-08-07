@@ -6,7 +6,7 @@
  *   PB10 – SPI3_SCK
  *   PC2  – SPI3_MISO
  *   PC1  – SPI3_MOSI
- *   PB8  – SDCARD_CS (GPIO output – active low)
+ *   PB8  – SD_CS (GPIO output – active low)
  *
  * Implements the glue between FatFs and the HAL SPI driver for blocking
  * transfers (no DMA). Suitable for data-logging at SD speeds.
@@ -24,8 +24,8 @@ extern SPI_HandleTypeDef hspi3;
 
 /* Select the SPI instance & chip-select macros */
 #define SD_SPI_HANDLE    hspi3
-#define CS_LOW()         HAL_GPIO_WritePin(SDCARD_CS_GPIO_Port, SDCARD_CS_Pin, GPIO_PIN_RESET)
-#define CS_HIGH()        HAL_GPIO_WritePin(SDCARD_CS_GPIO_Port, SDCARD_CS_Pin, GPIO_PIN_SET)
+#define CS_LOW()         HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET)
+#define CS_HIGH()        HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET)
 
 #define SPI_TIMEOUT      100U  /* ms */
 

@@ -29,12 +29,22 @@
 #include "stm32_hal_legacy.h"
 #include "stm32h5xx_hal.h"
 
+#include "diskio.h"
+#include "ff_gen_drv.h"
+#include "ff.h"
+#include "ffconf.h"
+
+
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+/* tell the compiler “here’s the driver you generated in fatfs_sd_spi.c” */
+extern const Diskio_drvTypeDef SD_Driver;
 
+/* buffer for the logical drive path (always 3+null chars) */
+char SDPath[4];
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -73,6 +83,15 @@ static void MX_SPI3_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 static void ITM_Init(void);
+static void DBG(const char *fmt, ...)
+{
+    char buf[128];
+    va_list ap;
+    va_start(ap, fmt);
+    int len = vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, HAL_MAX_DELAY);
+}
 
 /* USER CODE END 0 */
 
@@ -136,6 +155,34 @@ int main(void)
   fr = FATFS_LinkDriver(&SD_Driver, "");
   if (fr != FR_OK) {
       // handle error
+  }
+  if (FATFS_LinkDriver(&SD_Driver, SDPath) != 0) {
+      DBG("! LinkDriver failed\n");
+  }
+  else {
+      DBG("OK: LinkDriver => \"%s\"\r\n", SDPath);
+  }
+
+  /* 2) Mount */
+  fr = f_mount(&fs, SDPath, 1);
+  DBG("f_mount(\"%s\") = %d\r\n", SDPath, fr);
+  if (fr != FR_OK) {
+      // give up here
+  }
+
+  /* 3) Create file */
+  fr = f_open(&file, "hello.txt", FA_CREATE_ALWAYS | FA_WRITE);
+  DBG("f_open(\"hello.txt\") = %d\r\n", fr);
+  if (fr == FR_OK) {
+      /* 4) Write */
+      fr = f_write(&file, "Hi!", 3, &bw);
+      DBG("f_write(...) = %d, bytes written = %u\r\n", fr, bw);
+
+      /* 5) Close */
+      fr = f_close(&file);
+      DBG("f_close() = %d\r\n", fr);
+  } else {
+      DBG("Could not open file for write\r\n");
   }
   FIL fp;
   UINT bw;
