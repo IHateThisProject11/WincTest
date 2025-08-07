@@ -112,7 +112,6 @@ int main(void)
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
   SDCard_TestFileIO();
-
   /* USER CODE END 2 */
 
   /* Initialize led */
@@ -334,7 +333,7 @@ static void MX_SPI3_Init(void)
   hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi3.Init.NSS = SPI_NSS_SOFT;
-  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
   hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -457,6 +456,7 @@ static void ITM_Init(void)
     ITM->TCR = ITM_TCR_ITMENA_Msk | ITM_TCR_SWOENA_Msk;
     ITM->TER = 0x1;                             /* stimulus port 0       */
 }
+
 
 
 /* USER CODE END 4 */

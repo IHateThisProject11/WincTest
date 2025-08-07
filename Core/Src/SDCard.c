@@ -3,8 +3,10 @@
 #include <string.h>  /* for strlen */
 #include <stdio.h>   /* for printf */
 #include "ff.h"
+#include "stm32h5xx_hal.h"
 
 static FATFS SDFatFS;  /* File system object */
+extern SPI_HandleTypeDef hspi3;
 
 /**
  * @brief  Initialize SD card and mount filesystem.
@@ -24,6 +26,14 @@ DSTATUS SDCard_Init(void)
     }
 
     printf("SDCard_Init: card mounted OK\r\n");
+
+    /* ----- now speed up SPI for data transfers ----- */
+    HAL_SPI_DeInit(&hspi3);
+    hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;   // ≈16 MHz
+    if (HAL_SPI_Init(&hspi3) != HAL_OK) {
+        Error_Handler();
+    }
+
     return RES_OK;
 }
 
@@ -74,6 +84,8 @@ void SDCard_TestFileIO(void)
     buf[br] = '\0';
     printf("SDCard_TestFileIO: read %u bytes: %s", br, buf);
 }
+
+
 
 
 /*-----------------------------------------------------------------------
