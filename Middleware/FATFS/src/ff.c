@@ -19,11 +19,11 @@
 /----------------------------------------------------------------------------*/
 
 
-#include "../FATFS/ff.h"			/* Basic definitions and declarations of API */
+#include "ff.h"			/* Basic definitions and declarations of API */
 
 #include <string.h>
 
-#include "../FATFS/diskio.h"		/* Declarations of MAI */
+#include "diskio.h"		/* Declarations of MAI */
 
 /*--------------------------------------------------------------------------
 

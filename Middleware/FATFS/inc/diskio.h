@@ -2,6 +2,12 @@
 /  Low level disk interface modlue include file   (C)ChaN, 2025          /
 /-----------------------------------------------------------------------*/
 
+#include "ff.h"        /* Pull in BYTE, UINT, LBA_t, etc. definitions */
+#include "diskio.h"    /* Uses those types                                  */
+#include "main.h"      /* STM32 HAL handle declarations & GPIO macros       */
+#include <string.h>    /* if you need memset/memcpy                         */
+
+
 #ifndef _DISKIO_DEFINED
 #define _DISKIO_DEFINED
 

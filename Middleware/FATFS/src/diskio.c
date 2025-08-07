@@ -1,232 +1,217 @@
+#include "ff.h"        /* FatFs API (f_mount, etc.) */
+#include "diskio.h"    /* lower‐layer APIs for Chan’s FAT driver */
+#include "main.h"      /* brings in HAL + your hspi3 & pin defines */
+
+
+extern SPI_HandleTypeDef hspi3; /* your SPI3 handle */
+
+#define SDCARD_CS_LOW()  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET)
+#define SDCARD_CS_HIGH() HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET)
+
+static DSTATUS Stat = STA_NOINIT;
+
+/* Send and receive a single byte over SPI */
+static uint8_t spi_xfer(uint8_t data) {
+    uint8_t resp;
+    HAL_SPI_TransmitReceive(&hspi3, &data, &resp, 1, HAL_MAX_DELAY);
+    return resp;
+}
+
+/* Send N bytes of dummy 0xFF clocks */
+static void send_initial_clock_train(void) {
+    uint8_t i;
+    SDCARD_CS_HIGH();
+    for (i = 0; i < 10; i++) {
+        spi_xfer(0xFF);
+    }
+}
+
+/* Wait for card to respond (R1 format), timeout ~500µs */
+static uint8_t wait_r1(void) {
+    uint8_t r;
+    uint32_t timeout = HAL_GetTick() + 1;
+    do {
+        r = spi_xfer(0xFF);
+    } while ((r & 0x80) && (HAL_GetTick() < timeout));
+    return r;
+}
+
+/* Send a command packet (CMDn) and return R1 */
+static uint8_t send_cmd(uint8_t cmd, uint32_t arg) {
+    uint8_t buf[6], crc;
+
+    /* ACMD<n> is CMD55 + CMD<n> */
+    if (cmd & 0x80) {
+        cmd &= 0x7F;
+        if (send_cmd(55, 0) > 1) return 0xFF;
+    }
+
+    /* select & give a dummy before */
+    SDCARD_CS_LOW();
+    spi_xfer(0xFF);
+
+    buf[0] = 0x40 | cmd;
+    buf[1] = arg >> 24;
+    buf[2] = arg >> 16;
+    buf[3] = arg >>  8;
+    buf[4] = arg;
+    /* CRC: only valid for CMD0 and CMD8 */
+    crc = (cmd == 0) ? 0x95 : (cmd == 8 ? 0x87 : 0x01);
+    buf[5] = crc;
+
+    HAL_SPI_Transmit(&hspi3, buf, 6, HAL_MAX_DELAY);
+    return wait_r1();
+}
+
+/* Receive a data block into buff, length=512, return 1 on OK */
+static uint8_t rcvr_datablock(uint8_t *buff) {
+    uint8_t token;
+    uint32_t timeout = HAL_GetTick() + 100;
+
+    /* wait for data token 0xFE */
+    do {
+        token = spi_xfer(0xFF);
+    } while ((token == 0xFF) && (HAL_GetTick() < timeout));
+    if (token != 0xFE) return 0;
+
+    /* read 512 bytes */
+    for (uint16_t i = 0; i < 512; i++) {
+        buff[i] = spi_xfer(0xFF);
+    }
+    /* discard CRC */
+    spi_xfer(0xFF);
+    spi_xfer(0xFF);
+    return 1;
+}
+
 /*-----------------------------------------------------------------------*/
-/* Low level disk I/O module SKELETON for FatFs     (C)ChaN, 2025        */
+/* Initialize Drive                                                      */
 /*-----------------------------------------------------------------------*/
-/* If a working storage control module is available, it should be        */
-/* attached to the FatFs via a glue function rather than modifying it.   */
-/* This is an example of glue functions to attach various exsisting      */
-/* storage control modules to the FatFs module with a defined API.       */
-/*-----------------------------------------------------------------------*/
+DSTATUS disk_initialize(BYTE pdrv) {
+    uint8_t r1;
+    uint16_t retry = 0xFFF;
 
-#include "../FATFS/diskio.h"		/* Declarations FatFs MAI */
+    if (pdrv != 0) return STA_NOINIT;
 
-#include "../FATFS/ff.h"			/* Basic definitions of FatFs */
-#include "platform.h"
-#include "storage.h"
+    send_initial_clock_train();
 
-/* Example: Mapping of physical drive number for each drive */
-#define DEV_FLASH	0	/* Map FTL to physical drive 0 */
-#define DEV_MMC		1	/* Map MMC/SD card to physical drive 1 */
-#define DEV_USB		2	/* Map USB MSD to physical drive 2 */
+    /* CMD0: go idle */
+    do {
+        r1 = send_cmd(0, 0);
+    } while ((r1 != 0x01) && --retry);
+    if (r1 != 0x01) goto init_fail;
 
+    /* CMD8: voltage check */
+    r1 = send_cmd(8, 0x1AA);
+    if (r1 & 0x04)   /* illegal cmd = SDSC v1 */
+        retry = 0xFFF;
+    else {
+        /* read rest of R7 */
+        spi_xfer(0xFF); spi_xfer(0xFF);
+        spi_xfer(0xFF); spi_xfer(0xFF);
+    }
+
+    /* ACMD41: init, HCS bit */
+    do {
+        r1 = send_cmd(0x80|41, 0x40000000);
+    } while ((r1 != 0x00) && --retry);
+    if (r1 != 0x00) goto init_fail;
+
+    /* CMD58: read OCR */
+    if (send_cmd(58, 0) != 0x00) goto init_fail;
+    /* discard OCR */
+    spi_xfer(0xFF); spi_xfer(0xFF);
+    spi_xfer(0xFF); spi_xfer(0xFF);
+
+    Stat &= ~STA_NOINIT;
+    SDCARD_CS_HIGH();
+    spi_xfer(0xFF);
+    return Stat;
+
+init_fail:
+    SDCARD_CS_HIGH();
+    spi_xfer(0xFF);
+    return STA_NOINIT;
+}
 
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
 /*-----------------------------------------------------------------------*/
-
-DSTATUS disk_status (
-	BYTE pdrv		/* Physical drive nmuber to identify the drive */
-)
-{
-	DSTATUS stat;
-	int result;
-
-	switch (pdrv) {
-	case DEV_RAM :
-		result = RAM_disk_status();
-
-		// translate the reslut code here
-
-		return stat;
-
-	case DEV_MMC :
-		result = MMC_disk_status();
-
-		// translate the reslut code here
-
-		return stat;
-
-	case DEV_USB :
-		result = USB_disk_status();
-
-		// translate the reslut code here
-
-		return stat;
-	}
-	return STA_NOINIT;
+DSTATUS disk_status(BYTE pdrv) {
+    return (pdrv == 0 && !(Stat & STA_NOINIT)) ? 0 : STA_NOINIT;
 }
-
-
-
-/*-----------------------------------------------------------------------*/
-/* Inidialize a Drive                                                    */
-/*-----------------------------------------------------------------------*/
-
-DSTATUS disk_initialize (
-	BYTE pdrv				/* Physical drive nmuber to identify the drive */
-)
-{
-	DSTATUS stat;
-	int result;
-
-	switch (pdrv) {
-	case DEV_RAM :
-		result = RAM_disk_initialize();
-
-		// translate the reslut code here
-
-		return stat;
-
-	case DEV_MMC :
-		result = MMC_disk_initialize();
-
-		// translate the reslut code here
-
-		return stat;
-
-	case DEV_USB :
-		result = USB_disk_initialize();
-
-		// translate the reslut code here
-
-		return stat;
-	}
-	return STA_NOINIT;
-}
-
-
 
 /*-----------------------------------------------------------------------*/
 /* Read Sector(s)                                                        */
 /*-----------------------------------------------------------------------*/
+DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count) {
+    if (pdrv || !count) return RES_PARERR;
+    if (Stat & STA_NOINIT) return RES_NOTRDY;
 
-DRESULT disk_read (
-	BYTE pdrv,		/* Physical drive nmuber to identify the drive */
-	BYTE *buff,		/* Data buffer to store read data */
-	LBA_t sector,	/* Start sector in LBA */
-	UINT count		/* Number of sectors to read */
-)
-{
-	DRESULT res;
-	int result;
+    if (count == 1) {
+        if (send_cmd(17, sector * 512) == 0 && rcvr_datablock(buff))
+            count = 0;
+    } else {
+        return RES_PARERR;  /* multi-block not implemented */
+    }
 
-	switch (pdrv) {
-	case DEV_RAM :
-		// translate the arguments here
-
-		result = RAM_disk_read(buff, sector, count);
-
-		// translate the reslut code here
-
-		return res;
-
-	case DEV_MMC :
-		// translate the arguments here
-
-		result = MMC_disk_read(buff, sector, count);
-
-		// translate the reslut code here
-
-		return res;
-
-	case DEV_USB :
-		// translate the arguments here
-
-		result = USB_disk_read(buff, sector, count);
-
-		// translate the reslut code here
-
-		return res;
-	}
-
-	return RES_PARERR;
+    SDCARD_CS_HIGH();
+    spi_xfer(0xFF);
+    return count ? RES_ERROR : RES_OK;
 }
 
-
-
+#if FF_FS_READONLY == 0
 /*-----------------------------------------------------------------------*/
 /* Write Sector(s)                                                       */
 /*-----------------------------------------------------------------------*/
+DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count) {
+    if (pdrv || !count) return RES_PARERR;
+    if (Stat & STA_NOINIT) return RES_NOTRDY;
 
-#if FF_FS_READONLY == 0
+    if (count == 1) {
+        /* CMD24: write single */
+        if (send_cmd(24, sector * 512) == 0) {
+            spi_xfer(0xFF);
+            spi_xfer(0xFE);          /* data token */
+            /* send data */
+            HAL_SPI_Transmit(&hspi3, (uint8_t*)buff, 512, HAL_MAX_DELAY);
+            /* dummy CRC */
+            spi_xfer(0xFF); spi_xfer(0xFF);
+            /* data response */
+            if ((spi_xfer(0xFF) & 0x1F) == 0x05) {
+                /* wait write complete */
+                while (spi_xfer(0xFF) == 0) ;
+            }
+        }
+    } else {
+        return RES_PARERR;
+    }
 
-DRESULT disk_write (
-	BYTE pdrv,			/* Physical drive nmuber to identify the drive */
-	const BYTE *buff,	/* Data to be written */
-	LBA_t sector,		/* Start sector in LBA */
-	UINT count			/* Number of sectors to write */
-)
-{
-	DRESULT res;
-	int result;
-
-	switch (pdrv) {
-	case DEV_RAM :
-		// translate the arguments here
-
-		result = RAM_disk_write(buff, sector, count);
-
-		// translate the reslut code here
-
-		return res;
-
-	case DEV_MMC :
-		// translate the arguments here
-
-		result = MMC_disk_write(buff, sector, count);
-
-		// translate the reslut code here
-
-		return res;
-
-	case DEV_USB :
-		// translate the arguments here
-
-		result = USB_disk_write(buff, sector, count);
-
-		// translate the reslut code here
-
-		return res;
-	}
-
-	return RES_PARERR;
+    SDCARD_CS_HIGH();
+    spi_xfer(0xFF);
+    return RES_OK;
 }
-
 #endif
-
 
 /*-----------------------------------------------------------------------*/
 /* Miscellaneous Functions                                               */
 /*-----------------------------------------------------------------------*/
-
-DRESULT disk_ioctl (
-	BYTE pdrv,		/* Physical drive nmuber (0..) */
-	BYTE cmd,		/* Control code */
-	void *buff		/* Buffer to send/receive control data */
-)
-{
-	DRESULT res;
-	int result;
-
-	switch (pdrv) {
-	case DEV_RAM :
-
-		// Process of the command for the RAM drive
-
-		return res;
-
-	case DEV_MMC :
-
-		// Process of the command for the MMC/SD card
-
-		return res;
-
-	case DEV_USB :
-
-		// Process of the command the USB drive
-
-		return res;
-	}
-
-	return RES_PARERR;
+DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff) {
+    if (pdrv) return RES_PARERR;
+    switch (cmd) {
+        case CTRL_SYNC:
+            /* nothing to do */
+            return RES_OK;
+        case GET_SECTOR_COUNT:
+            /* TODO: implement if you read CSD */
+            return RES_OK;
+        case GET_SECTOR_SIZE:
+            *(WORD*)buff = 512;
+            return RES_OK;
+        case GET_BLOCK_SIZE:
+            *(DWORD*)buff = 8;
+            return RES_OK;
+        default:
+            return RES_PARERR;
+    }
 }
-
