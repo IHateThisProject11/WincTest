@@ -28,6 +28,7 @@
 #include "core_cm33.h"          /* gives ITM_SendChar                */
 #include "stm32_hal_legacy.h"
 #include "stm32h5xx_hal.h"
+#include "SDCard.h"
 
 
 /* USER CODE END Includes */
@@ -110,6 +111,7 @@ int main(void)
   MX_ICACHE_Init();
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
+  SDCard_TestFileIO();
 
   /* USER CODE END 2 */
 

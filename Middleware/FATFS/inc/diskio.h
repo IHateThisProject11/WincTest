@@ -3,7 +3,6 @@
 /-----------------------------------------------------------------------*/
 
 #include "ff.h"        /* Pull in BYTE, UINT, LBA_t, etc. definitions */
-#include "diskio.h"    /* Uses those types                                  */
 #include "main.h"      /* STM32 HAL handle declarations & GPIO macros       */
 #include <string.h>    /* if you need memset/memcpy                         */
 
