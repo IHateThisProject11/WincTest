@@ -131,55 +131,47 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
 //    HAL_GPIO_Init(WINK_SCK_GPIO_Port, &GPIO_InitStruct);
     /* USER CODE END SPI1_MspInit 1 */
   }
-  else if(hspi->Instance==SPI2)
+  else if(hspi->Instance==SPI3)
   {
-    /* USER CODE BEGIN SPI2_MspInit 0 */
+    /* USER CODE BEGIN SPI3_MspInit 0 */
 
-    /* USER CODE END SPI2_MspInit 0 */
+    /* USER CODE END SPI3_MspInit 0 */
 
   /** Initializes the peripherals clock
   */
-    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI2;
-    PeriphClkInitStruct.Spi2ClockSelection = RCC_SPI2CLKSOURCE_PLL1Q;
+    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI3;
+    PeriphClkInitStruct.Spi3ClockSelection = RCC_SPI3CLKSOURCE_PLL1Q;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
     {
       Error_Handler();
     }
 
     /* Peripheral clock enable */
-    __HAL_RCC_SPI2_CLK_ENABLE();
+    __HAL_RCC_SPI3_CLK_ENABLE();
 
-    __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    /**SPI2 GPIO Configuration
-    PC1     ------> SPI2_MOSI
-    PC2     ------> SPI2_MISO
-    PB10     ------> SPI2_SCK
+    /**SPI3 GPIO Configuration
+    PB4(NJTRST)     ------> SPI3_MISO
+    PB5     ------> SPI3_MOSI
+    PB7     ------> SPI3_SCK
     */
-    GPIO_InitStruct.Pin = SDCARD_MOSI_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
-    HAL_GPIO_Init(SDCARD_MOSI_GPIO_Port, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = SDCARD_MISO_Pin;
+    GPIO_InitStruct.Pin = SD_MISO_Pin|SD_SCK_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
-    HAL_GPIO_Init(SDCARD_MISO_GPIO_Port, &GPIO_InitStruct);
+    GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = SDCARD_SCK_Pin;
+    GPIO_InitStruct.Pin = SD_MOSI_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
-    HAL_GPIO_Init(SDCARD_SCK_GPIO_Port, &GPIO_InitStruct);
+    GPIO_InitStruct.Alternate = GPIO_AF7_SPI3;
+    HAL_GPIO_Init(SD_MOSI_GPIO_Port, &GPIO_InitStruct);
 
-    /* USER CODE BEGIN SPI2_MspInit 1 */
+    /* USER CODE BEGIN SPI3_MspInit 1 */
 
-    /* USER CODE END SPI2_MspInit 1 */
+    /* USER CODE END SPI3_MspInit 1 */
   }
 
 }
@@ -211,26 +203,24 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* hspi)
 
     /* USER CODE END SPI1_MspDeInit 1 */
   }
-  else if(hspi->Instance==SPI2)
+  else if(hspi->Instance==SPI3)
   {
-    /* USER CODE BEGIN SPI2_MspDeInit 0 */
+    /* USER CODE BEGIN SPI3_MspDeInit 0 */
 
-    /* USER CODE END SPI2_MspDeInit 0 */
+    /* USER CODE END SPI3_MspDeInit 0 */
     /* Peripheral clock disable */
-    __HAL_RCC_SPI2_CLK_DISABLE();
+    __HAL_RCC_SPI3_CLK_DISABLE();
 
-    /**SPI2 GPIO Configuration
-    PC1     ------> SPI2_MOSI
-    PC2     ------> SPI2_MISO
-    PB10     ------> SPI2_SCK
+    /**SPI3 GPIO Configuration
+    PB4(NJTRST)     ------> SPI3_MISO
+    PB5     ------> SPI3_MOSI
+    PB7     ------> SPI3_SCK
     */
-    HAL_GPIO_DeInit(GPIOC, SDCARD_MOSI_Pin|SDCARD_MISO_Pin);
+    HAL_GPIO_DeInit(GPIOB, SD_MISO_Pin|SD_MOSI_Pin|SD_SCK_Pin);
 
-    HAL_GPIO_DeInit(SDCARD_SCK_GPIO_Port, SDCARD_SCK_Pin);
+    /* USER CODE BEGIN SPI3_MspDeInit 1 */
 
-    /* USER CODE BEGIN SPI2_MspDeInit 1 */
-
-    /* USER CODE END SPI2_MspDeInit 1 */
+    /* USER CODE END SPI3_MspDeInit 1 */
   }
 
 }
