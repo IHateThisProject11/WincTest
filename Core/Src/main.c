@@ -33,7 +33,7 @@
 #include "ff_gen_drv.h"
 #include "ff.h"
 #include "ffconf.h"
-
+#include <stdarg.h>
 
 
 /* USER CODE END Includes */
@@ -44,13 +44,15 @@
 extern const Diskio_drvTypeDef SD_Driver;
 
 /* buffer for the logical drive path (always 3+null chars) */
-char SDPath[4];
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 FATFS fs;
 FRESULT fr;
+FIL     file;    // <-- declare your FIL here
+UINT    bw;      // <-- declare your byte-count here
+char    SDPath[4]; // <-- buffer for the logical drive
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -90,8 +92,11 @@ static void DBG(const char *fmt, ...)
     va_start(ap, fmt);
     int len = vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
-    HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, HAL_MAX_DELAY);
+    for (int i = 0; i < len; i++) {
+        ITM_SendChar(buf[i]);
+    }
 }
+
 
 /* USER CODE END 0 */
 
@@ -152,46 +157,33 @@ int main(void)
 
   /* USER CODE BEGIN BSP */
   /* mount the SD driver */
-  fr = FATFS_LinkDriver(&SD_Driver, "");
-  if (fr != FR_OK) {
-      // handle error
-  }
   if (FATFS_LinkDriver(&SD_Driver, SDPath) != 0) {
-      DBG("! LinkDriver failed\n");
-  }
-  else {
-      DBG("OK: LinkDriver => \"%s\"\r\n", SDPath);
+      Error_Handler();           // fatal if this fails
   }
 
-  /* 2) Mount */
+  /* 2) Mount the filesystem */
   fr = f_mount(&fs, SDPath, 1);
   DBG("f_mount(\"%s\") = %d\r\n", SDPath, fr);
   if (fr != FR_OK) {
-      // give up here
+      Error_Handler();
   }
 
-  /* 3) Create file */
+  /* 3) Create and open the file */
   fr = f_open(&file, "hello.txt", FA_CREATE_ALWAYS | FA_WRITE);
-  DBG("f_open(\"hello.txt\") = %d\r\n", fr);
+  DBG("f_open = %d\r\n", fr);
   if (fr == FR_OK) {
-      /* 4) Write */
+      /* 4) Write some data */
       fr = f_write(&file, "Hi!", 3, &bw);
-      DBG("f_write(...) = %d, bytes written = %u\r\n", fr, bw);
+      DBG("f_write = %d, bytes = %u\r\n", fr, bw);
 
-      /* 5) Close */
+      /* 5) Close the file */
       fr = f_close(&file);
-      DBG("f_close() = %d\r\n", fr);
+      DBG("f_close = %d\r\n", fr);
   } else {
-      DBG("Could not open file for write\r\n");
+      DBG("f_open failed\r\n");
   }
-  FIL fp;
-  UINT bw;
-  if (f_mount(&fs, "", 1) == FR_OK) {
-      if (f_open(&fp, "hello.txt", FA_CREATE_ALWAYS | FA_WRITE) == FR_OK) {
-          f_write(&fp, "Hi!", 3, &bw);
-          f_close(&fp);
-      }
-  }
+  /* USER CODE END 2 */
+
   /* -- Sample board code to send message over COM1 port ---- */
   printf("Welcome to STM32 world !\n\r");
 
