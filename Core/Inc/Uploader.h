@@ -35,3 +35,7 @@ int Uploader_SendFile(const char *fatfs_path, const char *pc_ip, uint16_t port, 
  */
 int Uploader_SendFileHTTP(const char *fatfs_path, const char *pc_ip, uint16_t port,
                           const char *uri_path, const char *content_type, uint32_t timeout_ms);
+
+
+int Uploader_SendFileHost(const char *fatfs_path,
+                          const char *host, uint16_t port, uint32_t timeout_ms);

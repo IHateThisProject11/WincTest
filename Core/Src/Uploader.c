@@ -17,6 +17,8 @@
 #include "stm32h5xx_hal.h"
 #include <string.h>
 #include <stdio.h>
+static volatile uint32_t s_resolved_ip = 0;
+static volatile int s_dns_done = 0;
 
 /* ---------- Tunables ---------- */
 #ifndef UPLOADER_CHUNK
@@ -286,4 +288,80 @@ int Uploader_SendFileHTTP(const char *fatfs_path, const char *pc_ip, uint16_t po
 
     f_close(&s_fil);
     return rc;
+}
+
+
+static void uploader_dns_cb(SOCKET sock, uint8 u8Msg, void *pvMsg) {
+    if (u8Msg == SOCKET_MSG_DNS_RESOLVE) {
+        tstrDnsReply *r = (tstrDnsReply*)pvMsg;
+        s_resolved_ip = (r && r->u32HostIP) ? r->u32HostIP : 0;
+        s_dns_done = 1;
+    }
+    /* chain into your existing uploader_socket_cb for other events */
+    uploader_socket_cb(sock, u8Msg, pvMsg);
+}
+
+int Uploader_SendFileHost(const char *fatfs_path,
+                          const char *host, uint16_t port, uint32_t timeout_ms)
+{
+    if (!fatfs_path || !host) return -1;
+
+    FRESULT fr = f_open(&s_fil, fatfs_path, FA_READ);
+    if (fr != FR_OK) {
+        printf("Uploader: f_open('%s') error %u\r\n", fatfs_path, (unsigned)fr);
+        return -2;
+    }
+
+    socketInit();
+    registerSocketCallback(uploader_dns_cb, 0);
+    s_dns_done = 0; s_resolved_ip = 0;
+
+    if (gethostbyname((uint8*)host) != SOCK_ERR_NO_ERROR) {
+        f_close(&s_fil);
+        return -3;
+    }
+
+    uint32_t deadline = timeout_ms ? HAL_GetTick() + timeout_ms : 0;
+    while (!s_dns_done) {
+        m2m_wifi_handle_events(NULL);
+        if (deadline && HAL_GetTick() >= deadline) {
+            printf("Uploader: DNS timeout\r\n");
+            f_close(&s_fil);
+            return -12;
+        }
+        HAL_Delay(1);
+    }
+    if (s_resolved_ip == 0) {
+        f_close(&s_fil);
+        return -13; // DNS failed
+    }
+
+    /* No headers (raw TCP) */
+    s_hdr_len = 0; s_hdr_off = 0;
+
+    /* Reuse existing connector with resolved IP */
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family      = AF_INET;
+    addr.sin_port        = _htons(port);
+    addr.sin_addr.s_addr = s_resolved_ip;
+
+    /* from here identical to uploader_connect_and_stream(...), inlined for clarity */
+    s_state = ST_CONNECTING; s_errno = 0; s_total_sent = 0; s_br = 0;
+    s_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (s_sock < 0) { _set_error(-10); f_close(&s_fil); return s_errno; }
+    if (connect(s_sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        _set_error(-11); f_close(&s_fil); return s_errno;
+    }
+
+    s_deadline = deadline;
+    while (1) {
+        m2m_wifi_handle_events(NULL);
+        if (s_state == ST_DONE) { f_close(&s_fil); return 0; }
+        if (s_state == ST_ERROR){ f_close(&s_fil); return s_errno ? s_errno : -99; }
+        if (s_deadline && HAL_GetTick() >= s_deadline) {
+            printf("Uploader: timeout\r\n"); _set_error(-12); f_close(&s_fil); return s_errno;
+        }
+        HAL_Delay(1);
+    }
 }

@@ -1,27 +1,18 @@
-#ifndef SDCARD_H
-#define SDCARD_H
+#pragma once
+#include <stdbool.h>
+#include <stdint.h>
 
-#include "ff.h"       /* FatFs types (FRESULT, FIL, etc.) */
-#include "diskio.h"   /* disk_initialize(), DSTATUS */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/**
- * @brief  Initialize SD card interface and mount filesystem.
- * @retval DSTATUS  RES_OK (0) on success, or an error code.
+/* Returns 0 on success; negative on error.
+ * Opens/creates 0:/can_log.csv (append), writes header if file was empty,
+ * configures FDCAN1 filter + notifications, and starts FDCAN1.
  */
-DSTATUS SDCard_Init(void);
+int CANLogger_Init(void);
 
-/**
- * @brief  Create “test.txt”, write a line, read it back, and print results.
- *         Relies on printf() being routed to your debug console.
- */
-void SDCard_TestFileIO(void);
+/* Call periodically (e.g., every 10–100 ms) to flush buffered lines. */
+void CANLogger_Tick(void);
 
-#ifdef __cplusplus
-}
-#endif
+/* Optional: enable/disable internal loopback for bench testing (call before Init). */
+void CANLogger_SetLoopback(bool enable);
 
-#endif /* SDCARD_H */
+/* True after Init succeeded and file is open. */
+bool CANLogger_Ready(void);
