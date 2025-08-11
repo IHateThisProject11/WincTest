@@ -30,6 +30,7 @@
 #include "stm32h5xx_hal.h"
 #include "SDCard.h"
 #include "Uploader.h"
+#include "ff.h"
 
 /* USER CODE END Includes */
 
@@ -115,7 +116,7 @@ int main(void)
   MX_SPI3_Init();
   MX_FDCAN1_Init();
   /* USER CODE BEGIN 2 */
-  SDCard_TestFileIO();
+  //SDCard_TestFileIO();
   /* USER CODE END 2 */
 
   /* Initialize led */
@@ -178,17 +179,19 @@ int main(void)
 
 	              if (fr == FR_OK) {
 	                  f_close(&f);
-
-	                  int rc = Uploader_SendFile("0:/test.txt", "192.168.1.101", 9000, 20000);
+	                  //change 10622 to whatever your ngrok.op ->
+	                  //tcp://6.tcp.us-cal-1.ngrok.io:10622
+	                  int rc = Uploader_SendFileHost("0:/test.txt",
+	                                                 "6.tcp.us-cal-1.ngrok.io", 10622, 60000);
 	                  printf("Uploader_SendFile rc=%d\r\n", rc);
+
 	                  sent = true;
 	              } else {
 	                  printf("Skipping upload; can't open file (rc=%u)\r\n", (unsigned)fr);
 
 
 	              }
-	              int rc = Uploader_SendFileHost("0:/can_log.csv", "0.tcp.ngrok.io", 17843, 60000);
-	             	                  printf("Uploader_SendFileHost rc=%d\r\n", rc);
+
 	          }
 	      }
 	  }

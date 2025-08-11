@@ -1,35 +1,42 @@
 /* Core/Src/Uploader.c
- * Stream a FatFS file to a remote host using the Microchip WINC socket API.
+ * Stream a FatFS file to a remote host using the Microchip WINC1500 socket API.
+ * - Raw TCP (Uploader_SendFile)
+ * - HTTP POST (Uploader_SendFileHTTP)
+ * - Raw TCP by hostname with DNS (Uploader_SendFileHost)
  *
- * This module is self-contained. It registers its own socket callback and drives
- * the async connect/send sequence while you block inside the API call.
- *
- * It uses only the headers that already exist in your tree:
- *   - ff.h        (FatFS)
- *   - socket.h    (WINC1500 sockets)
- *   - m2m_wifi.h  (for m2m_wifi_handle_events)
- *   - stm32h5xx_hal.h (HAL_GetTick for timeouts)
+ * Single-call / non-reentrant by design.
  */
+
 #include "Uploader.h"
 #include "ff.h"
-#include "socket.h"
-#include "m2m_wifi.h"
 #include "stm32h5xx_hal.h"
-#include <string.h>
-#include <stdio.h>
-static volatile uint32_t s_resolved_ip = 0;
-static volatile int s_dns_done = 0;
+#include "m2m_wifi.h"
 
-/* ---------- Tunables ---------- */
+#ifdef __has_include
+#  if __has_include("socket/include/socket.h")
+#    include "socket/include/socket.h"
+#  elif __has_include("socket.h")
+#    include "socket.h"
+#  else
+#    error "socket.h not found in include paths"
+#  endif
+#else
+#  include "socket.h"
+#endif
+
+#include <stdio.h>
+#include <string.h>
+
+/* ---------------- Tunables ---------------- */
 #ifndef UPLOADER_CHUNK
-#define UPLOADER_CHUNK   1024u   /* bytes per send() */
+#define UPLOADER_CHUNK            1024u     /* bytes per send() */
 #endif
 
 #ifndef UPLOADER_EVENT_POLL_MS
-#define UPLOADER_EVENT_POLL_MS  1u
+#define UPLOADER_EVENT_POLL_MS       1u
 #endif
 
-/* ---------- Internal state (single-use, not re-entrant) ---------- */
+/* ---------------- State ---------------- */
 typedef enum {
     ST_IDLE = 0,
     ST_CONNECTING,
@@ -40,28 +47,28 @@ typedef enum {
 } uploader_state_t;
 
 static volatile uploader_state_t s_state = ST_IDLE;
-static volatile int s_sock = -1;
-static FIL s_fil;                 /* open file */
-static UINT s_br = 0;             /* bytes read from file */
-static uint8_t s_buf[UPLOADER_CHUNK]; /* TX buffer (must persist across callbacks) */
-static uint32_t s_total_sent = 0;
-static int s_errno = 0;           /* negative error code to return */
-static uint32_t s_deadline = 0;   /* tick when we time out (0 = no timeout) */
+static volatile int              s_sock  = -1;
+static FIL                       s_fil;
+static UINT                      s_br    = 0;        /* unread bytes remaining in s_buf */
+static uint8_t                   s_buf[UPLOADER_CHUNK];
+static uint32_t                  s_total_sent = 0;
+static int                       s_errno = 0;
+static uint32_t                  s_deadline = 0;     /* 0 = no timeout */
 
 /* HTTP header buffer */
-static char s_hdr[192];
-static uint16_t s_hdr_len = 0;
-static uint16_t s_hdr_off = 0;
+static char                      s_hdr[192];
+static uint16_t                  s_hdr_len = 0;
+static uint16_t                  s_hdr_off = 0;
 
-/* ---------- Forward decl ---------- */
-static void uploader_socket_cb(SOCKET sock, uint8 u8Msg, void *pvMsg);
-static int uploader_connect_and_stream(const char *pc_ip, uint16_t port, uint32_t timeout_ms, int use_http);
+/* DNS (for hostname variant) */
+static volatile uint32_t         s_resolved_ip = 0;  /* network byte order */
+static volatile uint8_t          s_dns_done    = 0;
 
-/* ---------- Helpers ---------- */
-static int32_t _millis(void) { return (int32_t)HAL_GetTick(); }
+/* ---------------- Helpers ---------------- */
+static inline uint32_t _millis(void) { return HAL_GetTick(); }
 
-static int _expired(uint32_t dl) {
-    return (dl != 0u) && ((uint32_t)_millis() >= dl);
+static int _expired(uint32_t dl_ms) {
+    return (dl_ms != 0u) && (_millis() >= dl_ms);
 }
 
 static void _set_error(int code) {
@@ -88,7 +95,6 @@ static int _read_next_chunk(void) {
 }
 
 static void _try_send_next(void) {
-    /* Decide whether we're sending header or file */
     if (s_state == ST_SENDING_HDR) {
         if (s_hdr_off < s_hdr_len) {
             uint16 to_send = (uint16)(s_hdr_len - s_hdr_off);
@@ -100,7 +106,7 @@ static void _try_send_next(void) {
                 _set_error(-40);
                 return;
             }
-            return; /* wait for SOCKET_MSG_SEND */
+            return; /* progress handled in SOCKET_MSG_SEND */
         } else {
             s_state = ST_SENDING_FILE;
         }
@@ -109,9 +115,9 @@ static void _try_send_next(void) {
     if (s_state == ST_SENDING_FILE) {
         if (s_br == 0) {
             int have = _read_next_chunk();
-            if (have < 0) return;      /* error already handled */
+            if (have < 0) return; /* error handled */
             if (have == 0) {
-                /* EOF: done */
+                /* EOF */
                 close(s_sock);
                 s_sock = -1;
                 f_close(&s_fil);
@@ -125,19 +131,19 @@ static void _try_send_next(void) {
             _set_error(-41);
             return;
         }
-        return; /* wait for SOCKET_MSG_SEND to account progress */
+        return; /* progress handled in SOCKET_MSG_SEND */
     }
 }
 
-/* Socket callback advances the state machine */
+/* ---------------- Socket callbacks ---------------- */
 static void uploader_socket_cb(SOCKET sock, uint8 u8Msg, void *pvMsg) {
+    (void)sock;
     switch (u8Msg) {
     case SOCKET_MSG_CONNECT: {
         tstrSocketConnectMsg *p = (tstrSocketConnectMsg *)pvMsg;
-        if ((p) && (p->s8Error == 0)) {
+        if (p && p->s8Error == 0) {
             if (s_state == ST_CONNECTING) {
-                if (s_hdr_len > 0) s_state = ST_SENDING_HDR;
-                else               s_state = ST_SENDING_FILE;
+                s_state = (s_hdr_len > 0) ? ST_SENDING_HDR : ST_SENDING_FILE;
                 s_br = 0;
                 _try_send_next();
             }
@@ -150,7 +156,7 @@ static void uploader_socket_cb(SOCKET sock, uint8 u8Msg, void *pvMsg) {
     case SOCKET_MSG_SEND: {
         sint16 *psent = (sint16 *)pvMsg;
         if (!psent || *psent < 0) {
-            printf("Uploader: send callback err=%d\r\n", psent ? *psent : -1);
+            printf("Uploader: send cb err=%d\r\n", psent ? *psent : -1);
             _set_error(-42);
             break;
         }
@@ -162,7 +168,7 @@ static void uploader_socket_cb(SOCKET sock, uint8 u8Msg, void *pvMsg) {
         } else if (s_state == ST_SENDING_FILE) {
             s_total_sent += (uint32_t)sent;
             if ((uint32_t)sent >= s_br) {
-                s_br = 0; /* chunk consumed */
+                s_br = 0; /* chunk fully consumed */
             } else {
                 memmove(s_buf, s_buf + sent, s_br - (uint16)sent);
                 s_br -= (uint16)sent;
@@ -176,22 +182,63 @@ static void uploader_socket_cb(SOCKET sock, uint8 u8Msg, void *pvMsg) {
     }
 }
 
-/* Common connect/stream driver for both raw and HTTP modes */
-static int uploader_connect_and_stream(const char *pc_ip, uint16_t port, uint32_t timeout_ms, int use_http) {
+/* DNS resolve callback (two-callback API; avoids tstrDnsReply type entirely) */
+static void uploader_dns_cb(uint8 *pu8HostName, uint32 u32HostIp) {
+    (void)pu8HostName;
+    s_resolved_ip = u32HostIp;   /* 0 on failure, network byte order on success */
+    s_dns_done = 1;
+}
+
+/* Common connect/stream loop (socket already set up for IP case) */
+static int uploader_run_loop(uint32_t timeout_ms) {
+    s_deadline = (timeout_ms ? (_millis() + timeout_ms) : 0u);
+
+    while (1) {
+        m2m_wifi_handle_events(NULL);
+
+        if (s_state == ST_DONE)  return 0;
+        if (s_state == ST_ERROR) return s_errno ? s_errno : -99;
+        if (_expired(s_deadline)) {
+            printf("Uploader: timeout\r\n");
+            _set_error(-12);
+            return s_errno;
+        }
+        HAL_Delay(UPLOADER_EVENT_POLL_MS);
+    }
+}
+
+/* ---------------- Public API ---------------- */
+
+int Uploader_SendFile(const char *fatfs_path, const char *pc_ip, uint16_t port, uint32_t timeout_ms)
+{
+    if (!fatfs_path || !pc_ip) return -1;
+
+    FRESULT fr = f_open(&s_fil, fatfs_path, FA_READ);
+    if (fr != FR_OK) {
+        printf("Uploader: f_open('%s') error %u\r\n", fatfs_path, (unsigned)fr);
+        return -2;
+    }
+
+    /* Build sockaddr from dotted IP string */
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family      = AF_INET;
     addr.sin_port        = _htons(port);
     addr.sin_addr.s_addr = nmi_inet_addr((char *)pc_ip);
 
-    /* Init socket layer (idempotent) and register our callback */
+    /* Init socket layer + callbacks (idempotent) */
     socketInit();
-    registerSocketCallback(uploader_socket_cb, 0);
+    registerSocketCallback(uploader_socket_cb, uploader_dns_cb);
 
+    /* No header (raw) */
+    s_hdr_len = 0;
+    s_hdr_off = 0;
+
+    /* Create + connect */
     s_state = ST_CONNECTING;
     s_errno = 0;
     s_total_sent = 0;
-    s_hdr_off = 0;
+    s_br = 0;
 
     s_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (s_sock < 0) {
@@ -206,67 +253,35 @@ static int uploader_connect_and_stream(const char *pc_ip, uint16_t port, uint32_
         return s_errno;
     }
 
-    s_deadline = (timeout_ms ? (uint32_t)_millis() + timeout_ms : 0u);
-
-    while (1) {
-        m2m_wifi_handle_events(NULL);
-
-        if (s_state == ST_DONE) {
-            return 0;
-        }
-        if (s_state == ST_ERROR) {
-            return s_errno ? s_errno : -99;
-        }
-        if (_expired(s_deadline)) {
-            printf("Uploader: timeout\r\n");
-            _set_error(-12);
-            return s_errno;
-        }
-        HAL_Delay(UPLOADER_EVENT_POLL_MS);
-    }
-}
-
-/* ---------------- Public API ---------------- */
-
-int Uploader_SendFile(const char *fatfs_path, const char *pc_ip, uint16_t port, uint32_t timeout_ms) {
-    if (!fatfs_path || !pc_ip) return -1;
-
-    FRESULT fr = f_open(&s_fil, fatfs_path, FA_READ);
-    if (fr != FR_OK) {
-        printf("Uploader: f_open('%s') error %u\r\n", fatfs_path, (unsigned)fr);
-        return -2;
-    }
-
-    /* Raw mode: no header */
-    s_hdr_len = 0;
-    s_hdr_off = 0;
-
-    int rc = uploader_connect_and_stream(pc_ip, port, timeout_ms, 0);
-
+    /* Run */
+    int r = uploader_run_loop(timeout_ms);
     f_close(&s_fil);
-    return rc;
+    return r;
 }
 
 int Uploader_SendFileHTTP(const char *fatfs_path, const char *pc_ip, uint16_t port,
-                          const char *uri_path, const char *content_type, uint32_t timeout_ms) {
+                          const char *uri_path, const char *content_type, uint32_t timeout_ms)
+{
     if (!fatfs_path || !pc_ip) return -1;
 
+    /* Get file size for Content-Length */
     FILINFO finfo;
     memset(&finfo, 0, sizeof(finfo));
-    FRESULT fr = f_stat(fatfs_path, &finfo);
-    if (fr != FR_OK) {
-        printf("Uploader: f_stat('%s') error %u\r\n", fatfs_path, (unsigned)fr);
+    FRESULT frs = f_stat(fatfs_path, &finfo);
+    if (frs != FR_OK) {
+        printf("Uploader: f_stat('%s') error %u\r\n", fatfs_path, (unsigned)frs);
         return -2;
     }
     unsigned long fsize = (unsigned long)finfo.fsize;
 
-    fr = f_open(&s_fil, fatfs_path, FA_READ);
+    FRESULT fr = f_open(&s_fil, fatfs_path, FA_READ);
     if (fr != FR_OK) {
         printf("Uploader: f_open('%s') error %u\r\n", fatfs_path, (unsigned)fr);
         return -3;
     }
 
-    const char *ct = content_type ? content_type : "text/plain";
+    /* Build HTTP header */
+    const char *ct  = content_type ? content_type : "text/plain";
     const char *uri = (uri_path && *uri_path) ? uri_path : "upload";
     int n = snprintf(s_hdr, sizeof(s_hdr),
                      "POST /%s HTTP/1.1\r\n"
@@ -284,23 +299,45 @@ int Uploader_SendFileHTTP(const char *fatfs_path, const char *pc_ip, uint16_t po
     s_hdr_len = (uint16_t)n;
     s_hdr_off = 0;
 
-    int rc = uploader_connect_and_stream(pc_ip, port, timeout_ms, 1);
+    /* sockaddr from dotted IP */
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family      = AF_INET;
+    addr.sin_port        = _htons(port);
+    addr.sin_addr.s_addr = nmi_inet_addr((char *)pc_ip);
 
-    f_close(&s_fil);
-    return rc;
-}
+    /* Init socket + callbacks */
+    socketInit();
+    registerSocketCallback(uploader_socket_cb, uploader_dns_cb);
 
+    /* Create + connect */
+    s_state = ST_CONNECTING;
+    s_errno = 0;
+    s_total_sent = 0;
+    s_br = 0;
 
-static void uploader_dns_cb(SOCKET sock, uint8 u8Msg, void *pvMsg) {
-    if (u8Msg == SOCKET_MSG_DNS_RESOLVE) {
-        tstrDnsReply *r = (tstrDnsReply*)pvMsg;
-        s_resolved_ip = (r && r->u32HostIP) ? r->u32HostIP : 0;
-        s_dns_done = 1;
+    s_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (s_sock < 0) {
+        printf("Uploader: socket() failed (%d)\r\n", s_sock);
+        f_close(&s_fil);
+        _set_error(-10);
+        return s_errno;
     }
-    /* chain into your existing uploader_socket_cb for other events */
-    uploader_socket_cb(sock, u8Msg, pvMsg);
+    sint8 rc = connect(s_sock, (struct sockaddr *)&addr, sizeof(addr));
+    if (rc < 0) {
+        printf("Uploader: connect() rc=%d\r\n", rc);
+        f_close(&s_fil);
+        _set_error(-11);
+        return s_errno;
+    }
+
+    /* Run */
+    int r = uploader_run_loop(timeout_ms);
+    f_close(&s_fil);
+    return r;
 }
 
+/* Hostname (DNS) variant for ngrok/tunnels/etc.  Add the prototype to your header if you plan to call it. */
 int Uploader_SendFileHost(const char *fatfs_path,
                           const char *host, uint16_t port, uint32_t timeout_ms)
 {
@@ -313,55 +350,64 @@ int Uploader_SendFileHost(const char *fatfs_path,
     }
 
     socketInit();
-    registerSocketCallback(uploader_dns_cb, 0);
-    s_dns_done = 0; s_resolved_ip = 0;
+    registerSocketCallback(uploader_socket_cb, uploader_dns_cb);
+
+    s_dns_done    = 0;
+    s_resolved_ip = 0;
 
     if (gethostbyname((uint8*)host) != SOCK_ERR_NO_ERROR) {
         f_close(&s_fil);
-        return -3;
+        return -3; /* DNS start failure */
     }
 
-    uint32_t deadline = timeout_ms ? HAL_GetTick() + timeout_ms : 0;
+    /* Wait for DNS result while pumping events */
+    uint32_t deadline = timeout_ms ? (_millis() + timeout_ms) : 0;
     while (!s_dns_done) {
         m2m_wifi_handle_events(NULL);
-        if (deadline && HAL_GetTick() >= deadline) {
+        if (_expired(deadline)) {
             printf("Uploader: DNS timeout\r\n");
             f_close(&s_fil);
             return -12;
         }
-        HAL_Delay(1);
+        HAL_Delay(UPLOADER_EVENT_POLL_MS);
     }
     if (s_resolved_ip == 0) {
         f_close(&s_fil);
-        return -13; // DNS failed
+        return -13; /* DNS failed */
     }
 
-    /* No headers (raw TCP) */
-    s_hdr_len = 0; s_hdr_off = 0;
+    /* No header (raw) */
+    s_hdr_len = 0;
+    s_hdr_off = 0;
 
-    /* Reuse existing connector with resolved IP */
+    /* Build sockaddr from resolved IP */
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family      = AF_INET;
     addr.sin_port        = _htons(port);
-    addr.sin_addr.s_addr = s_resolved_ip;
+    addr.sin_addr.s_addr = s_resolved_ip; /* already network byte order */
 
-    /* from here identical to uploader_connect_and_stream(...), inlined for clarity */
-    s_state = ST_CONNECTING; s_errno = 0; s_total_sent = 0; s_br = 0;
+    /* Create + connect */
+    s_state = ST_CONNECTING;
+    s_errno = 0;
+    s_total_sent = 0;
+    s_br = 0;
+
     s_sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (s_sock < 0) { _set_error(-10); f_close(&s_fil); return s_errno; }
-    if (connect(s_sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        _set_error(-11); f_close(&s_fil); return s_errno;
+    if (s_sock < 0) {
+        printf("Uploader: socket() failed (%d)\r\n", s_sock);
+        _set_error(-10);
+        return s_errno;
+    }
+    sint8 rc = connect(s_sock, (struct sockaddr *)&addr, sizeof(addr));
+    if (rc < 0) {
+        printf("Uploader: connect() rc=%d\r\n", rc);
+        _set_error(-11);
+        return s_errno;
     }
 
-    s_deadline = deadline;
-    while (1) {
-        m2m_wifi_handle_events(NULL);
-        if (s_state == ST_DONE) { f_close(&s_fil); return 0; }
-        if (s_state == ST_ERROR){ f_close(&s_fil); return s_errno ? s_errno : -99; }
-        if (s_deadline && HAL_GetTick() >= s_deadline) {
-            printf("Uploader: timeout\r\n"); _set_error(-12); f_close(&s_fil); return s_errno;
-        }
-        HAL_Delay(1);
-    }
+    /* Run */
+    int r = uploader_run_loop(timeout_ms);
+    f_close(&s_fil);
+    return r;
 }
