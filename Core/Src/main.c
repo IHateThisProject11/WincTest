@@ -31,6 +31,8 @@
 #include "SDCard.h"
 #include "Uploader.h"
 #include "ff.h"
+#include "CANLogger.h"
+
 
 /* USER CODE END Includes */
 
@@ -117,6 +119,10 @@ int main(void)
   MX_FDCAN1_Init();
   /* USER CODE BEGIN 2 */
   //SDCard_TestFileIO();
+  /* USER CODE BEGIN 2 */
+
+  /* USER CODE END 2 */
+
   /* USER CODE END 2 */
 
   /* Initialize led */
@@ -148,59 +154,120 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  /* Boot once */
+  printf("Booting...\r\n");
+  WifiTask_Init();
+
+  /* ---- Optional: start CAN CSV logging at boot (after SD is ready) ---- */
+  HAL_Delay(100);  // let card power stabilize after reset
+  bool can_started = false;
+  for (int i = 0; i < 3 && !can_started; ++i) {
+      /* SDCard_Init() prints its own status; we just give it a few tries */
+      SDCard_Init();
+      /* Try opening the CSV path to confirm the FS is live */
+      FIL tmp;
+      FRESULT fr0 = f_open(&tmp, "0:/can_log.csv", FA_OPEN_ALWAYS | FA_WRITE);
+      if (fr0 == FR_OK) {
+          f_close(&tmp);
+          int lrc = CANLogger_Init();
+          printf("CANLogger_Init rc=%d\r\n", lrc);
+          can_started = (lrc == 0);
+          break;
+      }
+      HAL_Delay(50);
+  }
+
+  /* State */
+  bool upload_requested = false;     // set true on button press
+  bool uploaded_this_press = false;  // edge guard to avoid auto-repeat while held
+  uint32_t t_last = HAL_GetTick();
+
+  /* Button state for PC13 (active-low on many Nucleo boards) */
+  uint8_t btn_prev = HAL_GPIO_ReadPin(BUTTON_USER_GPIO_PORT, BUTTON_USER_PIN);
+  uint32_t btn_last_change = t_last;    // debounce timer
+
+  /* Main loop */
   while (1)
   {
+      WifiTask_Tick();
+      if (can_started) {
+          CANLogger_Tick();
+      }
 
+      uint32_t now = HAL_GetTick();
+      if ((now - t_last) >= 10U)
+      {
+          t_last += 10U;
 
+          /* --- Debounce USER button --- */
+          uint8_t btn_now = HAL_GPIO_ReadPin(BUTTON_USER_GPIO_PORT, BUTTON_USER_PIN);
+          if (btn_now != btn_prev) {
+              btn_prev = btn_now;
+              btn_last_change = now;          // start debounce window
+              uploaded_this_press = false;    // allow a new upload on next press
+          }
 
-	  printf("Booting...\r\n");
+          if (!upload_requested && (now - btn_last_change) >= 50U) {
+              /* Active-low press: pressed when btn_now == 0 */
+              if (!btn_now) {
+                  upload_requested = true;
+                  printf("Button pressed -> upload request queued.\r\n");
+              }
+          }
 
-	  WifiTask_Init();
+          /* --- Perform upload once per press, after Wi-Fi has an IP --- */
+          if (upload_requested && !uploaded_this_press && Wifi_HasIP())
+          {
+              /* Mount when needed (with a couple retries) */
+              bool mounted = false;
+              for (int i = 0; i < 3 && !mounted; ++i) {
+                  SDCard_Init();  // prints status internally
+                  /* Quick probe: try to open the file read-only */
+                  FIL probe;
+                  FRESULT frp = f_open(&probe, "0:/can_log.csv", FA_READ);
+                  if (frp == FR_OK) {
+                      f_close(&probe);
+                      mounted = true;
+                      break;
+                  } else if (frp == FR_NOT_ENABLED) {
+                      // FS not mounted yet; give it a moment and try again
+                      HAL_Delay(50);
+                  } else {
+                      // File might not exist yet; still consider FS mounted if not FR_NOT_ENABLED
+                      // We'll report and skip upload gracefully below.
+                      mounted = true;
+                      break;
+                  }
+              }
 
-	  bool sent = false;
-	  uint32_t t_last = HAL_GetTick();
+              if (mounted) {
+                  /* Try to open the CSV to upload */
+                  FIL f;
+                  FRESULT fr = f_open(&f, "0:/can_log.csv", FA_READ);
+                  printf("open('0:/can_log.csv') rc=%u\r\n", (unsigned)fr);
 
-	  while (1)
-	  {
-	      WifiTask_Tick();
+                  if (fr == FR_OK) {
+                      f_close(&f);
+                      int rc = Uploader_SendFileHost("0:/can_log.csv",
+                                                     "6.tcp.us-cal-1.ngrok.io", 10622, 60000);
+                      printf("Uploader_SendFile rc=%d\r\n", rc);
+                  } else {
+                      printf("No can_log.csv to upload (rc=%u).\r\n", (unsigned)fr);
+                  }
+              } else {
+                  printf("SD not ready after retries; skipping upload.\r\n");
+              }
 
-	      if ((HAL_GetTick() - t_last) >= 10U)
-	      {
-	          t_last += 10U;
-
-	          if (!sent && Wifi_HasIP())
-	          {
-	              // Re-mount to ensure a clean FS state
-	              SDCard_Init();
-
-	              FIL f;
-	              FRESULT fr = f_open(&f, "0:/test.txt", FA_READ);
-	              printf("pre f_open rc=%u\r\n", (unsigned)fr);
-
-	              if (fr == FR_OK) {
-	                  f_close(&f);
-	                  //change 10622 to whatever your ngrok.op ->
-	                  //tcp://6.tcp.us-cal-1.ngrok.io:10622
-	                  int rc = Uploader_SendFileHost("0:/test.txt",
-	                                                 "6.tcp.us-cal-1.ngrok.io", 10622, 60000);
-	                  printf("Uploader_SendFile rc=%d\r\n", rc);
-
-	                  sent = true;
-	              } else {
-	                  printf("Skipping upload; can't open file (rc=%u)\r\n", (unsigned)fr);
-
-
-	              }
-
-	          }
-	      }
-	  }
-
+              uploaded_this_press = true;   // don’t re-upload while held
+              upload_requested = false;     // clear request until next press
+          }
+      }
+  }
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+
   /* USER CODE END 3 */
 }
 

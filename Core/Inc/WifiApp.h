@@ -24,17 +24,7 @@ bool Wifi_HasIP(void);
 #define IRQ_WINC_Pin    IRQ_WINC_PIN_Pin   /* CubeMX name */
 #define WINC_INT_PIN    IRQ_WINC_Pin
 
-/* === Wi-Fi network settings === */
-//#define USE_WEP             (0)                   /* 1=WEP, 0=OPEN */
-//#define MAIN_WLAN_SSID      "Peace Vans Modern"
-//#if USE_WEP
-//  #define MAIN_WLAN_AUTH    M2M_WIFI_SEC_WEP
-//  #define MAIN_WLAN_WEP_KEY "vansKBB050322!"
-//  #define MAIN_WLAN_KEYIDX  (0)
-//#else
-//  #define MAIN_WLAN_AUTH    M2M_WIFI_SEC_OPEN
-//#endif
-//#define MAIN_WLAN_CHANNEL   (M2M_WIFI_CH_6)       /* e.g. channel 6 */
+
 
 /* === Wi-Fi network settings (station mode) === */
 #define USE_WEP              0                /* leave at 0 for WPA2-PSK */
