@@ -29,7 +29,7 @@
 #include "stm32_hal_legacy.h"
 #include "stm32h5xx_hal.h"
 #include "SDCard.h"
-
+#include "Uploader.h"
 
 /* USER CODE END Includes */
 
@@ -150,20 +150,41 @@ int main(void)
 
 	  printf("Booting...\r\n");
 
-	      WifiTask_Init();             // runs once and returns
-		  printf("Booted\r\n");
+	  WifiTask_Init();
 
-	      uint32_t t_last = HAL_GetTick();
-	      while (1)
+	  bool sent = false;
+	  uint32_t t_last = HAL_GetTick();
+
+	  while (1)
+	  {
+	      WifiTask_Tick();
+
+	      if ((HAL_GetTick() - t_last) >= 10U)
 	      {
-	          WifiTask_Tick();         // pumps WINC state machine
+	          t_last += 10U;
 
-	          if ((HAL_GetTick() - t_last) >= 10U)
+	          if (!sent && Wifi_HasIP())
 	          {
-	              t_last += 10U;
-	              // your periodic work here
+	              // Re-mount to ensure a clean FS state
+	              SDCard_Init();
+
+	              FIL f;
+	              FRESULT fr = f_open(&f, "0:/test.txt", FA_READ);
+	              printf("pre f_open rc=%u\r\n", (unsigned)fr);
+
+	              if (fr == FR_OK) {
+	                  f_close(&f);
+
+	                  int rc = Uploader_SendFile("0:/test.txt", "192.168.1.101", 9000, 20000);
+	                  printf("Uploader_SendFile rc=%d\r\n", rc);
+	                  sent = true;
+	              } else {
+	                  printf("Skipping upload; can't open file (rc=%u)\r\n", (unsigned)fr);
+	              }
 	          }
 	      }
+	  }
+
 
     /* USER CODE END WHILE */
 

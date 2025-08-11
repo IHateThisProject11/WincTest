@@ -60,7 +60,7 @@ void SDCard_TestFileIO(void)
         printf("SDCard_TestFileIO: f_open write error (%u)\r\n", fr);
         return;
     }
-    const char *msg = "Hello, SD card!\r\n";
+    const char *msg = "Gene is a huge idiot fart face and ADAM LICKS BUTTS \r\n";
     fr = f_write(&file, msg, strlen(msg), &bw);
     f_close(&file);
     if (fr != FR_OK || bw != strlen(msg)) {

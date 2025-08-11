@@ -12,6 +12,7 @@
 /* External interrupt service routine from bus wrapper */
 extern void isr(void);
 extern void nm_bsp_call_isr(void); /* declared in the BSP */
+static volatile bool s_wifi_has_ip = false;
 
 /**
  * @brief Wi-Fi event callback.
@@ -26,9 +27,11 @@ void wifi_cb(uint8_t u8MsgType, void *pvMsg)
             // Station connected
         } else if (pstrWifiState->u8CurrState == M2M_WIFI_DISCONNECTED) {
             printf("Station disconnected\r\n");
+            s_wifi_has_ip = false;
         }
         break;
     }
+
 //    case M2M_WIFI_REQ_DHCP_CONF:
 //    {
 //        uint8_t *pu8IPAddress = (uint8_t *)pvMsg;
@@ -40,15 +43,18 @@ void wifi_cb(uint8_t u8MsgType, void *pvMsg)
     case M2M_WIFI_REQ_DHCP_CONF:
     {
         uint8_t *ip = (uint8_t*)pvMsg;
-        printf("DHCP - IP address is %u.%u.%u.%u\r\n",
-                ip[0], ip[1], ip[2], ip[3]);
+        printf("DHCP - IP address is %u.%u.%u.%u\r\n", ip[0], ip[1], ip[2], ip[3]);
+        s_wifi_has_ip = true;
         break;
     }
+
 
     default:
         break;
     }
 }
+
+
 
 /**
  * @brief Initialize WINC1500 in AP mode.
@@ -137,4 +143,10 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == CONF_WINC_IRQ_PIN)
         nm_bsp_call_isr();     // invokes the driver’s stored ISR
+}
+
+
+bool Wifi_HasIP(void)
+{
+    return s_wifi_has_ip;
 }

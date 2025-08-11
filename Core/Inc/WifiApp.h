@@ -8,6 +8,7 @@ extern "C" {
 /* STM32H5 HAL + board support */
 #include "stm32h5xx_hal.h"
 #include "stm32h5xx_nucleo.h"    // change to your exact board header
+#include <stdbool.h>
 
 /* Standard lib for printf() */
 #include <stdio.h>
@@ -16,6 +17,8 @@ extern "C" {
 #include "driver/include/m2m_types.h"
 //#include "driver/include/m2m_wifi.h"
 #include "m2m_wifi.h"
+
+bool Wifi_HasIP(void);
 
 /* === IRQ pin alias === */
 #define IRQ_WINC_Pin    IRQ_WINC_PIN_Pin   /* CubeMX name */
@@ -35,9 +38,9 @@ extern "C" {
 
 /* === Wi-Fi network settings (station mode) === */
 #define USE_WEP              0                /* leave at 0 for WPA2-PSK */
-#define MAIN_WLAN_SSID    "test"        /* e.g. your home router or PC hotspot name */
+#define MAIN_WLAN_SSID    "PVans 2.4"        /* e.g. your home router or PC hotspot name */
 #define MAIN_WLAN_AUTH    M2M_WIFI_SEC_WPA_PSK       /* WPA2-PSK; use M2M_WIFI_SEC_OPEN if no passphrase */
-#define MAIN_WLAN_PSK     "test123123"    /* your Wi-Fi password (8–63 chars) */
+#define MAIN_WLAN_PSK     "8QS4iO2x"    /* your Wi-Fi password (8–63 chars) */
 #define MAIN_WLAN_CHANNEL M2M_WIFI_CH_ALL            /* scan all channels */
 
 
