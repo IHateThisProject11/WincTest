@@ -7,12 +7,24 @@
 
 static FATFS SDFatFS;  /* File system object */
 extern SPI_HandleTypeDef hspi3;
+static int s_sd_mounted = 0;  // 0=not mounted, 1=mounted
 
 /**
  * @brief  Initialize SD card and mount filesystem.
  */
 DSTATUS SDCard_Init(void)
 {
+	if (s_sd_mounted) {
+	  return 0;  // already ready
+	}
+	HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
+	HAL_Delay(150);
+
+	/* Ensure CS idles high before any clocks */
+	HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
+	/* 100–150 ms settle for some cards to be happy after power-up */
+	HAL_Delay(150);
+
     DSTATUS stat = disk_initialize(0);
     if (stat != RES_OK) {
         printf("SDCard_Init: disk_initialize failed (0x%02X)\r\n", stat);

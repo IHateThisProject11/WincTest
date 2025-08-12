@@ -17,6 +17,11 @@ extern "C" {
 #include "driver/include/m2m_types.h"
 //#include "driver/include/m2m_wifi.h"
 #include "m2m_wifi.h"
+#include <stdint.h>
+
+extern volatile uint32_t g_irq_exti_fired;
+extern volatile uint32_t g_irq_bsp_isr;
+extern volatile uint32_t g_wifi_ticks;
 
 bool Wifi_HasIP(void);
 

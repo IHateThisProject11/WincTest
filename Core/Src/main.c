@@ -26,7 +26,7 @@
 #include "WifiTask.h"
 #include <string.h>
 #include <stdio.h>
-#include "core_cm33.h"          /* gives ITM_SendChar                */
+#include "core_cm33.h"
 #include "stm32_hal_legacy.h"
 #include "stm32h5xx_hal.h"
 #include "SDCard.h"
@@ -35,7 +35,6 @@
 #include "CANLogger.h"
 #include <stdlib.h>
 #include "socket.h"
-#include "cmsis_os2.h"
 
 /* USER CODE END Includes */
 
@@ -485,6 +484,10 @@ static void MX_GPIO_Init(void)
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
   //__HAL_RCC_SYSCFG_CLK_ENABLE();
+  /* Ensure EXTI4 is clean and enabled (WINC nIRQ on PC4) */
+  __HAL_GPIO_EXTI_CLEAR_IT(IRQ_WINC_PIN_Pin);
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
   //  HAL_GPIO_WritePin(GPIOB, RESET_WINC_Pin, GPIO_PIN_RESET);
   //HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);  // SD CS idle HIGH

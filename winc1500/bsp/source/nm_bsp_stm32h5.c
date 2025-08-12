@@ -219,13 +219,8 @@ void nm_bsp_call_isr(void)    /* lightweight trampoline */
  */
 void nm_bsp_interrupt_ctrl(uint8 u8Enable)
 {
-    if (1 == u8Enable)
-    {
-        HAL_NVIC_SetPriority((IRQn_Type)(CONF_WINC_EXTI_IRQN), 0x01, 0);
-        HAL_NVIC_EnableIRQ((IRQn_Type)(CONF_WINC_EXTI_IRQN));
-    }
+    if (u8Enable)
+        HAL_NVIC_EnableIRQ((IRQn_Type)CONF_WINC_EXTI_IRQN);
     else
-    {
-        HAL_NVIC_DisableIRQ((IRQn_Type)(CONF_WINC_EXTI_IRQN));
-    }
+        HAL_NVIC_DisableIRQ((IRQn_Type)CONF_WINC_EXTI_IRQN);
 }

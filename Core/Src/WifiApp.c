@@ -14,6 +14,12 @@ extern void isr(void);
 extern void nm_bsp_call_isr(void); /* declared in the BSP */
 static volatile bool s_wifi_has_ip = false;
 
+
+/* --- debug counters --- */
+volatile uint32_t g_irq_exti_fired = 0;    // HAL EXTI callback hit
+volatile uint32_t g_irq_bsp_isr    = 0;    // nm_bsp_call_isr invoked
+volatile uint32_t g_wifi_ticks     = 0;    // WifiTask_Tick calls
+
 /**
  * @brief Wi-Fi event callback.
  */
@@ -117,6 +123,8 @@ void WifiApp_InitAP(void)
             MAIN_WLAN_AUTH,
             (void*)MAIN_WLAN_PSK,
             MAIN_WLAN_CHANNEL);
+    printf("m2m_wifi_connect rc=%d\r\n", ret);
+
     if (ret != M2M_SUCCESS) {
         printf("m2m_wifi_connect error %d\r\n", ret);
     } else {
@@ -141,10 +149,14 @@ void WifiApp_InitAP(void)
  */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == GPIO_PIN_4) {   // WINC nIRQ on PC4 → EXTI4
-        WINC1500_ISR_cb();          // just wake the WINC driver
+    if (GPIO_Pin == IRQ_WINC_PIN_Pin) {
+        g_irq_exti_fired++;      // count callback entries (no prints here)
+        nm_bsp_call_isr();       // invoke the WINC driver’s registered ISR
+        g_irq_bsp_isr++;         // count BSP trampoline calls
     }
 }
+
+
 bool Wifi_HasIP(void)
 {
     return s_wifi_has_ip;
