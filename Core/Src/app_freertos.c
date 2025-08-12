@@ -73,22 +73,22 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t WifiTaskHandle;
 const osThreadAttr_t WifiTask_attributes = {
   .name = "WifiTask",
-  .priority = (osPriority_t) osPriorityAboveNormal,
-  .stack_size = 5120
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
 };
 /* Definitions for CANLogTask */
 osThreadId_t CANLogTaskHandle;
 const osThreadAttr_t CANLogTask_attributes = {
   .name = "CANLogTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 1024
+  .stack_size = 128 * 4
 };
 /* Definitions for UploadTask */
 osThreadId_t UploadTaskHandle;
 const osThreadAttr_t UploadTask_attributes = {
   .name = "UploadTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 1024
+  .stack_size = 128 * 4
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -158,34 +158,27 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
-	  /* create threads AFTER OS objects exist */
-	  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
-	  printf("heap free=%lu min=%lu\r\n",
-	         (unsigned long)xPortGetFreeHeapSize(),
-	         (unsigned long)xPortGetMinimumEverFreeHeapSize());
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-	  WifiTaskHandle = osThreadNew(StartTask02, NULL, &WifiTask_attributes);
-	  printf("heap free=%lu min=%lu\r\n",
-	         (unsigned long)xPortGetFreeHeapSize(),
-	         (unsigned long)xPortGetMinimumEverFreeHeapSize());
+  /* creation of WifiTask */
+  WifiTaskHandle = osThreadNew(StartTask02, NULL, &WifiTask_attributes);
 
-	  CANLogTaskHandle = osThreadNew(StartTask03, NULL, &CANLogTask_attributes);
-	  printf("heap free=%lu min=%lu\r\n",
-	         (unsigned long)xPortGetFreeHeapSize(),
-	         (unsigned long)xPortGetMinimumEverFreeHeapSize());
+  /* creation of CANLogTask */
+  CANLogTaskHandle = osThreadNew(StartTask03, NULL, &CANLogTask_attributes);
 
-	  UploadTaskHandle = osThreadNew(StartTask04, NULL, &UploadTask_attributes);
-	  printf("heap free=%lu min=%lu\r\n",
-	         (unsigned long)xPortGetFreeHeapSize(),
-	         (unsigned long)xPortGetMinimumEverFreeHeapSize());
-	}
+  /* creation of UploadTask */
+  UploadTaskHandle = osThreadNew(StartTask04, NULL, &UploadTask_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
 
-
+}
 /* USER CODE BEGIN Header_StartDefaultTask */
 /**
 * @brief Function implementing the defaultTask thread.
@@ -198,18 +191,16 @@ void MX_FREERTOS_Init(void) {
 
 
 /* USER CODE END Header_StartDefaultTask */
-// In app_freertos.c (Default task area)
-
 void StartDefaultTask(void *argument)
 {
-  BSP_PB_Init(BUTTON_USER, BUTTON_MODE_GPIO);
-
-  for (;;) {
-    DebounceButtonAndSignal();
-    osDelay(10);
+  /* USER CODE BEGIN defaultTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
   }
+  /* USER CODE END defaultTask */
 }
-
 
 /* USER CODE BEGIN Header_StartTask02 */
 /**
@@ -220,34 +211,14 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_StartTask02 */
 void StartTask02(void *argument)
 {
-  static uint32_t t0 = 0;
-  static uint32_t last_exti = 0, last_bsp = 0, last_ticks = 0;
-
-  WifiTask_Init();
-
-  for (;;) {
-    WifiTask_Tick();
-    if (Wifi_HasIP()) {
-      osEventFlagsSet(g_sysEvt, EVT_HAS_IP);
-    }
-
-    if (HAL_GetTick() - t0 >= 250) {
-      uint32_t e = g_irq_exti_fired;
-      uint32_t b = g_irq_bsp_isr;
-      uint32_t w = g_wifi_ticks;
-      printf("DBG: exti=%lu (+%lu)  bsp=%lu (+%lu)  ticks=%lu (+%lu)\r\n",
-             (unsigned long)e, (unsigned long)(e - last_exti),
-             (unsigned long)b, (unsigned long)(b - last_bsp),
-             (unsigned long)w, (unsigned long)(w - last_ticks));
-      last_exti = e; last_bsp = b; last_ticks = w;
-      t0 = HAL_GetTick();
-    }
-
-    osDelay(20);
+  /* USER CODE BEGIN WifiTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
   }
+  /* USER CODE END WifiTask */
 }
-
-
 
 /* USER CODE BEGIN Header_StartTask03 */
 /**
@@ -295,67 +266,14 @@ void StartTask03(void *argument)
 /* USER CODE END Header_StartTask04 */
 void StartTask04(void *argument)
 {
-  // One-shot throttle for CAN start (optional but tidy)
-  static int can_started = 0;
-
-  for (;;) {
-    // 1) Wait for IP (if already set, this returns immediately).
-    uint32_t r = osEventFlagsWait(g_sysEvt, EVT_HAS_IP, osFlagsWaitAny, osWaitForever);
-    if ((int32_t)r < 0) {                   // <-- treat error as "don't proceed"
-      printf("ERR: wait HAS_IP ret=%ld\r\n", (long)(int32_t)r);
-      osDelay(50);
-      continue;
-    }
-
-    // 2) Require a *fresh* press each time.
-    (void)osEventFlagsClear(g_sysEvt, EVT_BTN_PRESSED); // consume any stale bit
-
-    r = osEventFlagsWait(g_sysEvt, EVT_BTN_PRESSED, osFlagsWaitAny, osWaitForever);
-    if ((int32_t)r < 0) {
-      printf("ERR: wait BTN ret=%ld\r\n", (long)(int32_t)r);
-      osDelay(50);
-      continue;
-    }
-
-    // Optional: require release before re-arming so a held key can't re-trigger.
-    while (BSP_PB_GetState(BUTTON_USER) == 0) {
-      osDelay(10);
-    }
-
-    // 3) Ensure SD is ready (under mutex) *once per press*.
-    osMutexAcquire(g_sdMutex, osWaitForever);
-    int sd_ok = (SDCard_Init() == 0);  // your SDCard_Init returns 0 on success
-    osMutexRelease(g_sdMutex);
-
-    if (!sd_ok) {
-      printf("Upload: SD not ready, skipping\r\n");
-      osDelay(200);
-      continue;                        // wait for next press
-    }
-
-    // 4) Upload the file (protected by the same SD mutex).
-    osMutexAcquire(g_sdMutex, osWaitForever);
-    int rc = Uploader_SendFileHost("0:/can_log.csv",
-                                   "8.tcp.us-cal-1.ngrok.io",
-                                   15868,
-                                   60000);
-    osMutexRelease(g_sdMutex);
-    printf("Uploader_SendFile rc=%d\r\n", rc);
-
-    // 5) Allow CAN logging to start the first time only (harmless if repeated).
-    if (!can_started) {
-      (void)osEventFlagsSet(g_sysEvt, EVT_CANLOG_START);
-      can_started = 1;
-    }
-
-    // 6) Clear BTN bit again to force a *new* press next loop.
-    (void)osEventFlagsClear(g_sysEvt, EVT_BTN_PRESSED);
-
-    osDelay(50);  // small guard delay
+  /* USER CODE BEGIN UploadTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
   }
+  /* USER CODE END UploadTask */
 }
-
-
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
