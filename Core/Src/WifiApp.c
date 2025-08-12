@@ -141,9 +141,8 @@ void WifiApp_InitAP(void)
  */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == IRQ_WINC_PIN_Pin) {
-        nm_bsp_call_isr();
-        return;
+    if (GPIO_Pin == GPIO_PIN_4) {   // WINC nIRQ on PC4 → EXTI4
+        WINC1500_ISR_cb();          // just wake the WINC driver
     }
 }
 bool Wifi_HasIP(void)

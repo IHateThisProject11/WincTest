@@ -68,22 +68,22 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t WifiTaskHandle;
 const osThreadAttr_t WifiTask_attributes = {
   .name = "WifiTask",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 4096
+  .priority = (osPriority_t) osPriorityAboveNormal,
+  .stack_size = 3072
 };
 /* Definitions for CANLogTask */
 osThreadId_t CANLogTaskHandle;
 const osThreadAttr_t CANLogTask_attributes = {
   .name = "CANLogTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .stack_size = 1024
 };
 /* Definitions for UploadTask */
 osThreadId_t UploadTaskHandle;
 const osThreadAttr_t UploadTask_attributes = {
   .name = "UploadTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .stack_size = 1024
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -130,16 +130,24 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_QUEUES */
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
-
+  printf("heap free=%lu min=%lu\r\n",
+         (unsigned long)xPortGetFreeHeapSize(),
+         (unsigned long)xPortGetMinimumEverFreeHeapSize());
   /* creation of WifiTask */
   WifiTaskHandle = osThreadNew(StartTask02, NULL, &WifiTask_attributes);
-
+  printf("heap free=%lu min=%lu\r\n",
+         (unsigned long)xPortGetFreeHeapSize(),
+         (unsigned long)xPortGetMinimumEverFreeHeapSize());
   /* creation of CANLogTask */
   CANLogTaskHandle = osThreadNew(StartTask03, NULL, &CANLogTask_attributes);
-
+  printf("heap free=%lu min=%lu\r\n",
+         (unsigned long)xPortGetFreeHeapSize(),
+         (unsigned long)xPortGetMinimumEverFreeHeapSize());
   /* creation of UploadTask */
   UploadTaskHandle = osThreadNew(StartTask04, NULL, &UploadTask_attributes);
-
+  printf("heap free=%lu min=%lu\r\n",
+         (unsigned long)xPortGetFreeHeapSize(),
+         (unsigned long)xPortGetMinimumEverFreeHeapSize());
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -281,18 +289,16 @@ void StartTask04(void *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
-{
-  printf("STACK OVERFLOW: %s\r\n", pcTaskName);
-  taskDISABLE_INTERRUPTS();
-  for(;;);
+void vApplicationMallocFailedHook(void) {
+  printf("MALLOC FAILED free=%lu min=%lu\r\n",
+         (unsigned long)xPortGetFreeHeapSize(),
+         (unsigned long)xPortGetMinimumEverFreeHeapSize());
+  taskDISABLE_INTERRUPTS(); for(;;);
 }
 
-void vApplicationMallocFailedHook(void)
-{
-  printf("MALLOC FAILED\r\n");
-  taskDISABLE_INTERRUPTS();
-  for(;;);
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
+  printf("STACK OVERFLOW: %s\r\n", pcTaskName);
+  taskDISABLE_INTERRUPTS(); for(;;);
 }
 
 /* USER CODE END Application */

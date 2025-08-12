@@ -182,25 +182,11 @@ void nm_bsp_sleep(uint32 u32TimeMsec)
  */
 void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
 {
-    GPIO_InitTypeDef GPIO_InitStruct;
     gpfIsr = pfIsr;
-
-    /* EXTI2 init ISR function - called from nm_bsp_register_isr() */
-     __GPIOC_CLK_ENABLE();
-	 //__GPIOA_CLK_ENABLE();
-
-    /*Configure GPIO pin : PC$ */
-    GPIO_InitStruct.Pin   = CONF_WINC_SPI_INT_PIN;
-    GPIO_InitStruct.Mode  = GPIO_MODE_IT_FALLING;
-    GPIO_InitStruct.Pull  = GPIO_NOPULL;
-    HAL_GPIO_Init(CONF_WINC_SPI_INT_PORT, &GPIO_InitStruct);
-    HAL_NVIC_SetPriority(CONF_WINC_EXTI_IRQN, 1, 0);
-    HAL_NVIC_EnableIRQ(CONF_WINC_EXTI_IRQN);
+    /* CubeMX already configured PC4 as EXTI and enabled EXTI4_IRQn.
+       Do NOT re-init the pin or change NVIC priority here. */
 
 
-    /* EXTI 2 (PC4) interrupt init*/
-    HAL_NVIC_SetPriority(CONF_WINC_EXTI_IRQN, 0x00, 0);
-    HAL_NVIC_EnableIRQ(CONF_WINC_EXTI_IRQN);
 
 #if 0
 	GPIO_InitTypeDef   GPIO_InitStructure;

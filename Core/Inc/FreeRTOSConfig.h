@@ -164,6 +164,7 @@ header file. */
 /* Section where parameter definitions can be added (for instance, to override default ones in FreeRTOS.h) */
 #define configCHECK_FOR_STACK_OVERFLOW 2
 #define configUSE_MALLOC_FAILED_HOOK   1
+#define configTOTAL_HEAP_SIZE            ( ( size_t ) ( 14 * 1024 ) )
 
 /* USER CODE END Defines */
 

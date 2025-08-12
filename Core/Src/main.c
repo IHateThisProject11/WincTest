@@ -126,7 +126,6 @@ int main(void)
   MX_FDCAN1_Init();
   /* USER CODE BEGIN 2 */
   //SDCard_TestFileIO();
-  WifiTask_Init();
   /* Boot-time SD + CAN logger bring-up */
   HAL_Delay(100);   /* let rails settle */
 
