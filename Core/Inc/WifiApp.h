@@ -54,7 +54,8 @@ void EXTI4_IRQHandler(void);
 /**
  * @brief Forward HAL EXTI callbacks to the WINC ISR.
  */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
+
+  /* your PC13/button EXTI handling if you still use it */
 
 #ifdef __cplusplus
 }

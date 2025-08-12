@@ -35,12 +35,13 @@
 #include "CANLogger.h"
 #include <stdlib.h>
 #include "socket.h"
+#include "cmsis_os2.h"
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-//static int NetBeacon_Query(char *out_host, size_t out_host_sz, uint16_t *out_port);
+extern osEventFlagsId_t g_sysEvt;
 
 /* USER CODE END PTD */
 
@@ -65,7 +66,6 @@ SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi3;
 
 /* USER CODE BEGIN PV */
-static bool g_sd_ready = false;
 
 /* USER CODE END PV */
 
@@ -180,44 +180,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-      WifiTask_Tick();
-      //CANLogger_Tick();
 
-      if (BspButtonState == BUTTON_PRESSED)
-      {
-          BspButtonState = BUTTON_RELEASED;
-          printf("Button pressed -> upload request queued.\r\n");
-
-          if (!Wifi_HasIP()) {
-              printf("No IP yet; skipping upload for now.\r\n");
-              continue;
-          }
-
-          if (!g_sd_ready) {
-              printf("SD not mounted; skipping upload.\r\n");
-              continue;
-          }
-
-          /* Open the CSV we intend to upload */
-          FIL f;
-          FRESULT fr = f_open(&f, "0:/can_log.csv", FA_READ);
-          printf("open('0:/can_log.csv') rc=%u\r\n", (unsigned)fr);
-
-          if (fr == FR_OK) {
-              f_close(&f);
-
-              /* Hardcoded ngrok endpoint (edit here only) */
-              char     host_buf[96] = "8.tcp.us-cal-1.ngrok.io";
-              uint16_t port         = 15868;
-
-              int rc = Uploader_SendFileHost("0:/can_log.csv", host_buf, port, 60000);
-              printf("Uploader_SendFile rc=%d\r\n", rc);
-          } else {
-              printf("No can_log.csv to upload (rc=%u).\r\n", (unsigned)fr);
-          }
-      }
   }
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

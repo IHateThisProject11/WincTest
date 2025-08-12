@@ -22,21 +22,34 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "app_freertos.h"
+#include "WifiTask.h"
+#include "WifiApp.h"
+#include "SDCard.h"
+#include "CANLogger.h"
+#include "Uploader.h"
+#include "stm32h5xx_nucleo.h"
+#include "WifiTask.h"
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+#define EVT_HAS_IP         (1U << 0)
+#define EVT_BTN_PRESSED    (1U << 1)
+#define EVT_CANLOG_START   (1U << 2)
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+/* RTOS objects shared across tasks */
+osEventFlagsId_t g_sysEvt;
+osMutexId_t      g_sdMutex;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+static void DebounceButtonAndSignal(void);
 
 /* USER CODE END PM */
 
@@ -56,7 +69,7 @@ osThreadId_t WifiTaskHandle;
 const osThreadAttr_t WifiTask_attributes = {
   .name = "WifiTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .stack_size = 4096
 };
 /* Definitions for CANLogTask */
 osThreadId_t CANLogTaskHandle;
@@ -75,7 +88,18 @@ const osThreadAttr_t UploadTask_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+static void DebounceButtonAndSignal(void)
+{
+  static uint32_t lastTick = 0;
+  static uint8_t  lastState = 1; // Nucleo button idle = released = 1
+  uint8_t s = BSP_PB_GetState(BUTTON_USER);
+  uint32_t now = osKernelGetTickCount();
+  if (s == 0 && lastState == 1 && (now - lastTick) > 200) { // falling edge + 200ms
+    osEventFlagsSet(g_sysEvt, EVT_BTN_PRESSED);
+    lastTick = now;
+  }
+  lastState = s;
+}
 /* USER CODE END FunctionPrototypes */
 
 /**
@@ -85,7 +109,8 @@ const osThreadAttr_t UploadTask_attributes = {
   */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
-
+	  const osMutexAttr_t sd_mutex_attr = { .name = "sdMutex" };
+	  g_sdMutex = osMutexNew(&sd_mutex_attr);
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -120,8 +145,8 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
-  /* add events, ... */
-  /* USER CODE END RTOS_EVENTS */
+  const osEventFlagsAttr_t evt_attr = { .name = "sysEvt" };
+  g_sysEvt = osEventFlagsNew(&evt_attr);  /* USER CODE END RTOS_EVENTS */
 
 }
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -137,8 +162,9 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
-  }
+	    DebounceButtonAndSignal();
+	    BSP_LED_Toggle(LED2);
+	    osDelay(250);  }
   /* USER CODE END defaultTask */
 }
 
@@ -152,11 +178,17 @@ void StartDefaultTask(void *argument)
 void StartTask02(void *argument)
 {
   /* USER CODE BEGIN WifiTask */
+	  WifiTask_Init();           // safe to call once; implement inside WifiApp.c
+
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
-  }
+	    WifiTask_Tick();        // keep WINC driver pumped
+	    if (Wifi_HasIP()) {
+	      osEventFlagsSet(g_sysEvt, EVT_HAS_IP);
+	    }
+	    osDelay(20);
+	  }
   /* USER CODE END WifiTask */
 }
 
@@ -170,11 +202,31 @@ void StartTask02(void *argument)
 void StartTask03(void *argument)
 {
   /* USER CODE BEGIN CANLogTask */
+	  osEventFlagsWait(g_sysEvt, EVT_CANLOG_START, osFlagsWaitAny, osWaitForever);
+
+	  // SD + CAN logger init (guard SD with mutex while we touch FatFs)
+	  osMutexAcquire(g_sdMutex, osWaitForever);
+	  DSTATUS s = SDCard_Init();
+	  osMutexRelease(g_sdMutex);
+
+	  if (s == RES_OK) {
+	    CANLogger_SetLoopback(false); // optional; keep as you like
+	    if (CANLogger_Init() == 0) {
+	      printf("CANLogger: started\n");
+	    } else {
+	      printf("CANLogger: init failed\n");
+	    }
+	  } else {
+	    printf("SD init failed, CAN logging disabled\n");
+	  }
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
-  }
+	    // CANLogger handles its own buffering; just flush periodically.
+	    osMutexAcquire(g_sdMutex, osWaitForever);
+	    CANLogger_Tick();
+	    osMutexRelease(g_sdMutex);
+	    osDelay(50);  }
   /* USER CODE END CANLogTask */
 }
 
@@ -188,16 +240,60 @@ void StartTask03(void *argument)
 void StartTask04(void *argument)
 {
   /* USER CODE BEGIN UploadTask */
+	  /* USER CODE BEGIN StartTask04 */
+	  // 1) Wait for WiFi, 2) wait for button, 3) try upload existing CSV, 4) signal CAN logging may start.
+  (void)osEventFlagsWait(g_sysEvt, EVT_HAS_IP, osFlagsWaitAny, osWaitForever);
+  (void)osEventFlagsWait(g_sysEvt, EVT_BTN_PRESSED, osFlagsWaitAny, osWaitForever);
+
+  // Make sure SD is mounted before peeking the file.
+	osMutexAcquire(g_sdMutex, osWaitForever);
+	DSTATUS s = SDCard_Init();
+	osMutexRelease(g_sdMutex);
+
+	if (s == RES_OK) {
+	  // OPTIONAL: quick existence check to avoid needless upload
+	  // Do the file I/O under mutex to avoid racing CANLogger later.
+	  osMutexAcquire(g_sdMutex, osWaitForever);
+	  // If your Uploader handles fopen/fread internally, just call it without mutex and remove this block.
+	  int rc = Uploader_SendFileHost("0:/can_log.csv",
+									 "8.tcp.us-cal-1.ngrok.io", // replace to taste
+									 15868,
+									 60000); // ms timeout
+	  osMutexRelease(g_sdMutex);
+
+	  printf("Upload rc=%d\n", rc);
+	} else {
+	  printf("Upload: SD not ready, skipping\n");
+	}
+
+	// Let the CAN logger spin up after upload window.
+	osEventFlagsSet(g_sysEvt, EVT_CANLOG_START);
+
+	    // Then park; or convert to a recurring “press-to-upload latest” loop later.
+
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	osDelay(1000);
   }
   /* USER CODE END UploadTask */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+  printf("STACK OVERFLOW: %s\r\n", pcTaskName);
+  taskDISABLE_INTERRUPTS();
+  for(;;);
+}
+
+void vApplicationMallocFailedHook(void)
+{
+  printf("MALLOC FAILED\r\n");
+  taskDISABLE_INTERRUPTS();
+  for(;;);
+}
 
 /* USER CODE END Application */
 

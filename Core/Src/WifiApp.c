@@ -139,13 +139,13 @@ void WifiApp_InitAP(void)
 /**
  * @brief HAL EXTI callback forwarding to WINC driver.
  */
-void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == CONF_WINC_IRQ_PIN)
-        nm_bsp_call_isr();     // invokes the driver’s stored ISR
+    if (GPIO_Pin == IRQ_WINC_PIN_Pin) {
+        nm_bsp_call_isr();
+        return;
+    }
 }
-
-
 bool Wifi_HasIP(void)
 {
     return s_wifi_has_ip;
