@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os2.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -70,6 +71,7 @@ static bool g_sd_ready = false;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_FREERTOS_Init(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_ICACHE_Init(void);
@@ -128,40 +130,16 @@ int main(void)
   /* Boot-time SD + CAN logger bring-up */
   HAL_Delay(100);   /* let rails settle */
 
-  for (int i = 0; i < 3 && !g_sd_ready; ++i) {
-      SDCard_Init();  /* prints status internally */
-
-      /* Probe: if volume is mounted, FR != FR_NOT_ENABLED */
-      FIL f;
-      FRESULT fr = f_open(&f, "0:/can_log.csv", FA_OPEN_APPEND | FA_WRITE);
-      if (fr == FR_OK) {
-          f_close(&f);
-          g_sd_ready = true;
-          break;
-      } else if (fr == FR_NO_FILE) {
-          /* create the CSV */
-          fr = f_open(&f, "0:/can_log.csv", FA_CREATE_NEW | FA_WRITE);
-          if (fr == FR_OK) { f_close(&f); g_sd_ready = true; break; }
-      } else if (fr == FR_NOT_ENABLED) {
-          HAL_Delay(50); /* volume not mounted yet, retry */
-      } else {
-          /* Any other FR still means the FS is mounted (just file missing/locked) */
-          g_sd_ready = true;
-          break;
-      }
-  }
-
-  if (g_sd_ready) {
-      int lrc = CANLogger_Init();
-      printf("CANLogger_Init rc=%d\r\n", lrc);
-  } else {
-      printf("SD not ready; CAN logging disabled this boot.\r\n");
-  }
 
   /* USER CODE BEGIN 2 */
   /* Call this right before you upload */
 
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();
+  /* Call init function for freertos objects (in app_freertos.c) */
+  MX_FREERTOS_Init();
 
   /* Initialize led */
   BSP_LED_Init(LED_GREEN);
@@ -189,6 +167,11 @@ int main(void)
   BSP_LED_On(LED_GREEN);
 
   /* USER CODE END BSP */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -234,10 +217,6 @@ int main(void)
           }
       }
   }
-
-  /* USER CODE END WHILE */
-
-
 
     /* USER CODE END WHILE */
 
@@ -494,15 +473,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);   // idle HIGH
+  HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, RESET_WINC_Pin, GPIO_PIN_RESET);          // keep reset low
-  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);       // SD idle HIGH
+  HAL_GPIO_WritePin(GPIOB, RESET_WINC_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);  // SD CS idle HIGH
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_RESET); // keep chip disabled
-
+  HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -539,7 +517,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
