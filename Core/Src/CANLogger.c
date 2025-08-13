@@ -73,6 +73,20 @@ static inline int _qpop(csv_t* out){
 }
 #endif
 
+int CANLogger_Suspend(void) {
+    if (s_file_open) { f_sync(&s_fil); f_close(&s_fil); s_file_open = false; }
+    return 0;
+}
+
+int CANLogger_Resume(void) {
+    if (!s_file_open) {
+        FRESULT fr = f_open(&s_fil, CANCSV_PATH, FA_OPEN_ALWAYS | FA_WRITE);
+        if (fr != FR_OK) return -1;
+        f_lseek(&s_fil, f_size(&s_fil));
+        s_file_open = true;
+    }
+    return 0;
+}
 
 /* Map FDCAN DLC macro to byte length (classic 0..8) */
 static uint8_t _dlc_bytes(uint32_t dlc) {
@@ -232,11 +246,17 @@ static int _fdcan_setup(void)
 int CANLogger_Init(void)
 {
     /* Open/append the CSV file */
-    FRESULT fr = f_open(&s_fil, CANCSV_PATH, FA_OPEN_APPEND | FA_WRITE);
-    if (fr != FR_OK) {
-        printf("CANCSV: f_open('%s') failed rc=%u\r\n", CANCSV_PATH, (unsigned)fr);
-        return -1;
-    }
+//    FRESULT fr = f_open(&s_fil, CANCSV_PATH, FA_OPEN_APPEND | FA_WRITE);
+//    if (fr != FR_OK) {
+//        printf("CANCSV: f_open('%s') failed rc=%u\r\n", CANCSV_PATH, (unsigned)fr);
+//        return -1;
+//    }
+	// was: f_open(&s_fil, CANCSV_PATH, FA_OPEN_APPEND | FA_WRITE);
+	FRESULT fr = f_open(&s_fil, CANCSV_PATH, FA_OPEN_ALWAYS | FA_WRITE);
+	if (fr == FR_OK) {
+	    f_lseek(&s_fil, f_size(&s_fil));  // move to end to append
+	}
+
     s_file_open = true;
     _maybe_write_header();
 
@@ -260,11 +280,19 @@ void CANLogger_Tick(void)
     if (s_file_open) {
         csv_t item;
         while (_qpop(&item) == 0) {
-            UINT bw=0;
-            if (f_write(&s_fil, item.line, (UINT)item.n, &bw) != FR_OK || bw != item.n) {
-                s_write_err++;
-                break; // back off on error
-            }
+        	UINT bw = 0;
+        	FRESULT fr = f_write(&s_fil, item.line, (UINT)item.n, &bw);
+        	if (fr != FR_OK || bw != item.n) {
+        	    // quick retry after a sync; keeps us resilient to sporadic card busy
+        	    f_sync(&s_fil);
+        	    bw = 0;
+        	    fr = f_write(&s_fil, item.line, (UINT)item.n, &bw);
+        	}
+        	if (fr != FR_OK || bw != item.n) {
+        	    s_write_err++;
+        	    break; // still bad; back off this tick
+        	}
+
             s_rx_count++;
         }
         /* periodic flush */

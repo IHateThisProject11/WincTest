@@ -135,6 +135,30 @@ static void _try_send_next(void) {
     }
 }
 
+// Add near top:
+static const char* _sock_err(int e){
+    switch(e){
+    case -1:  return "general failure";
+    case -2:  return "invalid address";
+    case -3:  return "address in use";
+    case -4:  return "max sockets";
+    case -5:  return "invalid arg";
+    case -6:  return "addr already";
+    case -7:  return "timeout";
+    case -8:  return "busy";
+    case -9:  return "invalid";
+    case -10: return "abort";
+    case -11: return "reset";
+    case -12: return "timeout/refused";
+    default:  return "?";
+    }
+}
+static void _print_ip_be(uint32_t be){
+    uint8_t a = (be >> 24) & 0xFF, b = (be >> 16) & 0xFF, c = (be >> 8) & 0xFF, d = be & 0xFF;
+    printf("DNS: %u.%u.%u.%u\r\n", a,b,c,d);
+}
+
+
 /* ---------------- Socket callbacks ---------------- */
 static void uploader_socket_cb(SOCKET sock, uint8 u8Msg, void *pvMsg) {
     (void)sock;
@@ -185,9 +209,11 @@ static void uploader_socket_cb(SOCKET sock, uint8 u8Msg, void *pvMsg) {
 /* DNS resolve callback (two-callback API; avoids tstrDnsReply type entirely) */
 static void uploader_dns_cb(uint8 *pu8HostName, uint32 u32HostIp) {
     (void)pu8HostName;
-    s_resolved_ip = u32HostIp;   /* 0 on failure, network byte order on success */
+    s_resolved_ip = u32HostIp;   // network byte order
     s_dns_done = 1;
+    _print_ip_be(s_resolved_ip);
 }
+
 
 /* Common connect/stream loop (socket already set up for IP case) */
 static int uploader_run_loop(uint32_t timeout_ms) {

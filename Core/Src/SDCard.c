@@ -41,7 +41,7 @@ DSTATUS SDCard_Init(void)
 
     /* ----- now speed up SPI for data transfers ----- */
     HAL_SPI_DeInit(&hspi3);
-    hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;   // ≈16 MHz
+    hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;   // ≈16 MHz
     if (HAL_SPI_Init(&hspi3) != HAL_OK) {
         Error_Handler();
     }

@@ -66,29 +66,29 @@ static void DebounceButtonAndSignal(void);
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityLow,
   .stack_size = 128 * 4
 };
 /* Definitions for WifiTask */
 osThreadId_t WifiTaskHandle;
 const osThreadAttr_t WifiTask_attributes = {
   .name = "WifiTask",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 4096
 };
 /* Definitions for CANLogTask */
 osThreadId_t CANLogTaskHandle;
 const osThreadAttr_t CANLogTask_attributes = {
   .name = "CANLogTask",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 4096
 };
 /* Definitions for UploadTask */
 osThreadId_t UploadTaskHandle;
 const osThreadAttr_t UploadTask_attributes = {
   .name = "UploadTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .stack_size = 2048
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -171,7 +171,14 @@ void MX_FREERTOS_Init(void) {
   UploadTaskHandle = osThreadNew(StartTask04, NULL, &UploadTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
+  printf("thr %-12s = %p  heap=%lu\r\n",
+         "Default", (void*)defaultTaskHandle, (unsigned long)xPortGetFreeHeapSize());
+  printf("thr %-12s = %p  heap=%lu\r\n",
+         "WifiTask", (void*)WifiTaskHandle,   (unsigned long)xPortGetFreeHeapSize());
+  printf("thr %-12s = %p  heap=%lu\r\n",
+         "CANLogTask",(void*)CANLogTaskHandle,(unsigned long)xPortGetFreeHeapSize());
+  printf("thr %-12s = %p  heap=%lu\r\n",
+         "UploadTask",(void*)UploadTaskHandle,(unsigned long)xPortGetFreeHeapSize());
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -194,11 +201,15 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN defaultTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	  BSP_PB_Init(BUTTON_USER, BUTTON_MODE_GPIO);
+
+	  for (;;)
+	  {
+	    DebounceButtonAndSignal();      // posts EVT_BTN_PRESSED on falling edge
+	    osDelay(10);
+	  }
+
+
   /* USER CODE END defaultTask */
 }
 
@@ -212,11 +223,35 @@ void StartDefaultTask(void *argument)
 void StartTask02(void *argument)
 {
   /* USER CODE BEGIN WifiTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	  WifiTask_Init();
+
+	  uint32_t t0 = HAL_GetTick();
+	  uint32_t last_exti = 0, last_bsp = 0, last_ticks = 0;
+
+	  for (;;)
+	  {
+	    WifiTask_Tick();
+	    if (Wifi_HasIP()) {
+	      (void)osEventFlagsSet(g_sysEvt, EVT_HAS_IP);
+	    }
+
+	    // 250 ms heartbeat (optional)
+	    if (HAL_GetTick() - t0 >= 250) {
+	      extern volatile uint32_t g_irq_exti_fired, g_irq_bsp_isr, g_wifi_ticks;
+	      uint32_t e = g_irq_exti_fired, b = g_irq_bsp_isr, w = g_wifi_ticks;
+	      printf("DBG: exti=%lu (+%lu)  bsp=%lu (+%lu)  ticks=%lu (+%lu)\r\n",
+	             (unsigned long)e, (unsigned long)(e - last_exti),
+	             (unsigned long)b, (unsigned long)(b - last_bsp),
+	             (unsigned long)w, (unsigned long)(w - last_ticks));
+	      last_exti = e; last_bsp = b; last_ticks = w;
+	      t0 = HAL_GetTick();
+	    }
+
+	    osDelay(20);
+	  }
+
+
+
   /* USER CODE END WifiTask */
 }
 
@@ -230,29 +265,31 @@ void StartTask02(void *argument)
 void StartTask03(void *argument)
 {
   /* USER CODE BEGIN CANLogTask */
-	osEventFlagsWait(g_sysEvt, EVT_CANLOG_START, osFlagsWaitAny, osWaitForever);
+	  printf("CAN: auto-start logger\r\n");
 
-	osMutexAcquire(g_sdMutex, osWaitForever);
-	int rc = SDCard_Init();    // 0 = OK
-	osMutexRelease(g_sdMutex);
-
-	if (rc == 0) {
-	  CANLogger_SetLoopback(false);
-	  if (CANLogger_Init() == 0) {
-	    printf("CANLogger: started\n");
-	  } else {
-	    printf("CANLogger: init failed\n");
-	  }
-	} else {
-	  printf("SD init failed, CAN logging disabled (rc=%d)\n", rc);
-	}
-
-	for (;;) {
 	  osMutexAcquire(g_sdMutex, osWaitForever);
-	  CANLogger_Tick();
+	  int rc_sd = SDCard_Init();               // 0 = OK
 	  osMutexRelease(g_sdMutex);
-	  osDelay(50);
-	}
+	  printf("CAN: SDCard_Init rc=%d\r\n", rc_sd);
+
+	  if (rc_sd == 0) {
+	    CANLogger_SetLoopback(false);          // real bus, not loopback
+	    osMutexAcquire(g_sdMutex, osWaitForever);
+	    int rc = CANLogger_Init();
+	    osMutexRelease(g_sdMutex);
+
+	    printf("CAN: CANLogger_Init rc=%d\r\n", rc);
+	  } else {
+	    printf("CAN: SD init failed, logging disabled\r\n");
+	  }
+
+	  for (;;)
+	  {
+	    osMutexAcquire(g_sdMutex, osWaitForever);
+	    CANLogger_Tick();                      // drains ring + periodic f_sync
+	    osMutexRelease(g_sdMutex);
+	    osDelay(50);
+	  }
 
   /* USER CODE END CANLogTask */
 }
@@ -267,11 +304,49 @@ void StartTask03(void *argument)
 void StartTask04(void *argument)
 {
   /* USER CODE BEGIN UploadTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	  static int can_started = 0;
+
+	  for (;;)
+	   {
+	     // Wait until we have BOTH Wi-Fi IP and a button press (a press before IP still counts)
+	     uint32_t r = osEventFlagsWait(g_sysEvt,
+	                                   EVT_HAS_IP | EVT_BTN_PRESSED,
+	                                   osFlagsWaitAll | osFlagsNoClear,
+	                                   osWaitForever);
+	     if ((int32_t)r < 0) {
+	       printf("ERR: wait IP+BTN ret=%ld\r\n", (long)(int32_t)r);
+	       osDelay(50);
+	       continue;
+	     }
+
+	     // Make sure SD is mounted (under mutex) before upload
+	     osMutexAcquire(g_sdMutex, osWaitForever);
+	     int sd_ok = (SDCard_Init() == 0);
+	     osMutexRelease(g_sdMutex);
+	     if (!sd_ok) {
+	       printf("Upload: SD not ready\r\n");
+	       osDelay(200);
+	       continue;
+	     }
+
+	     // Upload (serialize all SD access under the same mutex)
+	     osMutexAcquire(g_sdMutex, osWaitForever);
+	     CANLogger_Suspend();
+
+	     int rc = Uploader_SendFileHost("0:/can_log.csv",
+	                                    "2.tcp.us-cal-1.ngrok.io",
+	                                    11686,
+	                                    60000);
+	     CANLogger_Resume();
+	     osMutexRelease(g_sdMutex);
+	     printf("Uploader_SendFile rc=%d\r\n", rc);
+
+	     // Consume the button bit and require release before we re-arm
+	     (void)osEventFlagsClear(g_sysEvt, EVT_BTN_PRESSED);
+	     while (BSP_PB_GetState(BUTTON_USER) == 0) { osDelay(10); }
+
+	     osDelay(50);
+	   }
   /* USER CODE END UploadTask */
 }
 
