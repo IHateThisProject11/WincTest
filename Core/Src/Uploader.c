@@ -1,10 +1,10 @@
 /* Core/Src/Uploader.c
- * Stream a FatFS file to a remote host using the Microchip WINC1500 socket API.
+ * Stream a FatFs file to a remote host using the Microchip WINC1500 socket API.
  * - Raw TCP (Uploader_SendFile)
  * - HTTP POST (Uploader_SendFileHTTP)
  * - Raw TCP by hostname with DNS (Uploader_SendFileHost)
  *
- * Single-call / non-reentrant by design.
+ * Single-call / non-reentrant by design. Keeps your existing function names.
  */
 
 #include "Uploader.h"
@@ -51,9 +51,13 @@ static volatile int              s_sock  = -1;
 static FIL                       s_fil;
 static UINT                      s_br    = 0;        /* unread bytes remaining in s_buf */
 static uint8_t                   s_buf[UPLOADER_CHUNK];
-static uint32_t                  s_total_sent = 0;
+static uint32_t                  s_total_sent = 0;    /* total payload bytes sent (excl. HTTP header) */
 static int                       s_errno = 0;
 static uint32_t                  s_deadline = 0;     /* 0 = no timeout */
+
+/* Remember the file path for reopen-once retry */
+static char                      s_path[64] = {0};
+static uint8_t s_read_retried = 0;   // resets per upload
 
 /* HTTP header buffer */
 static char                      s_hdr[192];
@@ -66,9 +70,25 @@ static volatile uint8_t          s_dns_done    = 0;
 
 /* ---------------- Helpers ---------------- */
 static inline uint32_t _millis(void) { return HAL_GetTick(); }
+extern int SDCard_ForceReinit(void);   /* from SDCard.c */
 
 static int _expired(uint32_t dl_ms) {
     return (dl_ms != 0u) && (_millis() >= dl_ms);
+}
+
+static void _reset_state(void) {
+    s_state       = ST_IDLE;
+    s_sock        = -1;
+    s_br          = 0;
+    s_total_sent  = 0;
+    s_errno       = 0;
+    s_deadline    = 0;
+    s_hdr_len     = 0;
+    s_hdr_off     = 0;
+    s_resolved_ip = 0;
+    s_dns_done    = 0;
+    s_read_retried = 0;
+    /* s_path left as-is until next open */
 }
 
 static void _set_error(int code) {
@@ -82,17 +102,66 @@ static void _set_error(int code) {
     f_close(&s_fil);
 }
 
-static int _read_next_chunk(void) {
+static const char* _sock_err(int e){
+    switch(e){
+    case -1:  return "general failure";
+    case -2:  return "invalid address";
+    case -3:  return "address in use";
+    case -4:  return "max sockets";
+    case -5:  return "invalid arg";
+    case -6:  return "addr already";
+    case -7:  return "timeout";
+    case -8:  return "busy";
+    case -9:  return "invalid";
+    case -10: return "abort";
+    case -11: return "reset";
+    case -12: return "timeout/refused";
+    default:  return "?";
+    }
+}
+
+static void _print_ip_be(uint32_t be){
+    uint8_t a = (be >> 24) & 0xFF, b = (be >> 16) & 0xFF, c = (be >> 8) & 0xFF, d = be & 0xFF;
+    printf("DNS: %u.%u.%u.%u\r\n", a,b,c,d);
+}
+// Uploader.c  (full replacement)
+static int _read_next_chunk(void)
+{
     UINT n = 0;
     FRESULT fr = f_read(&s_fil, s_buf, sizeof(s_buf), &n);
-    if (fr != FR_OK) {
-        printf("Uploader: f_read error %u\r\n", (unsigned)fr);
-        _set_error(-30);
-        return -1;
+
+    if (fr == FR_OK) {
+        s_read_retried = 0;
+        s_br = n;
+        return (n > 0) ? 1 : 0;   /* 1=data, 0=EOF */
     }
-    s_br = n;
-    return (n > 0) ? 1 : 0; /* 1 = got data, 0 = EOF */
+
+    if (fr == FR_DISK_ERR && s_read_retried == 0) {
+        s_read_retried = 1;
+        printf("Uploader: f_read FR_DISK_ERR at %lu, reinit + retry...\r\n",
+               (unsigned long)s_total_sent);
+
+        f_close(&s_fil);
+
+        if (SDCard_ForceReinit() == 0 &&
+            f_open(&s_fil, s_path, FA_READ | FA_OPEN_EXISTING) == FR_OK &&
+            f_lseek(&s_fil, (FSIZE_t)s_total_sent) == FR_OK)
+        {
+            n  = 0;
+            fr = f_read(&s_fil, s_buf, sizeof(s_buf), &n);
+            if (fr == FR_OK) {
+                s_br = n;
+                return (n > 0) ? 1 : 0;
+            }
+        }
+    }
+
+    printf("Uploader: f_read error %u at %lu\r\n",
+           (unsigned)fr, (unsigned long)s_total_sent);
+    _set_error(-30);
+    return -1;
 }
+
 
 static void _try_send_next(void) {
     if (s_state == ST_SENDING_HDR) {
@@ -135,30 +204,6 @@ static void _try_send_next(void) {
     }
 }
 
-// Add near top:
-static const char* _sock_err(int e){
-    switch(e){
-    case -1:  return "general failure";
-    case -2:  return "invalid address";
-    case -3:  return "address in use";
-    case -4:  return "max sockets";
-    case -5:  return "invalid arg";
-    case -6:  return "addr already";
-    case -7:  return "timeout";
-    case -8:  return "busy";
-    case -9:  return "invalid";
-    case -10: return "abort";
-    case -11: return "reset";
-    case -12: return "timeout/refused";
-    default:  return "?";
-    }
-}
-static void _print_ip_be(uint32_t be){
-    uint8_t a = (be >> 24) & 0xFF, b = (be >> 16) & 0xFF, c = (be >> 8) & 0xFF, d = be & 0xFF;
-    printf("DNS: %u.%u.%u.%u\r\n", a,b,c,d);
-}
-
-
 /* ---------------- Socket callbacks ---------------- */
 static void uploader_socket_cb(SOCKET sock, uint8 u8Msg, void *pvMsg) {
     (void)sock;
@@ -172,7 +217,7 @@ static void uploader_socket_cb(SOCKET sock, uint8 u8Msg, void *pvMsg) {
                 _try_send_next();
             }
         } else {
-            printf("Uploader: connect failed err=%d\r\n", p ? p->s8Error : -1);
+            printf("Uploader: connect failed err=%d (%s)\r\n", p ? p->s8Error : -1, _sock_err(p ? p->s8Error : -1));
             _set_error(-20);
         }
         break;
@@ -214,7 +259,6 @@ static void uploader_dns_cb(uint8 *pu8HostName, uint32 u32HostIp) {
     _print_ip_be(s_resolved_ip);
 }
 
-
 /* Common connect/stream loop (socket already set up for IP case) */
 static int uploader_run_loop(uint32_t timeout_ms) {
     s_deadline = (timeout_ms ? (_millis() + timeout_ms) : 0u);
@@ -239,15 +283,28 @@ int Uploader_SendFile(const char *fatfs_path, const char *pc_ip, uint16_t port, 
 {
     if (!fatfs_path || !pc_ip) return -1;
 
+    _reset_state();
+
+    /* Print size early; also proves the path is valid */
+    FILINFO fi; memset(&fi, 0, sizeof(fi));
+    if (f_stat(fatfs_path, &fi) == FR_OK) {
+        printf("Uploader: %s size=%lu bytes\r\n", fatfs_path, (unsigned long)fi.fsize);
+        if (fi.fsize == 0) {
+            /* Optional: bail out early if empty */
+            // return -14;
+        }
+    }
+
     FRESULT fr = f_open(&s_fil, fatfs_path, FA_READ);
     if (fr != FR_OK) {
         printf("Uploader: f_open('%s') error %u\r\n", fatfs_path, (unsigned)fr);
         return -2;
     }
+    strncpy(s_path, fatfs_path, sizeof(s_path)-1);
+    s_path[sizeof(s_path)-1] = '\0';
 
     /* Build sockaddr from dotted IP string */
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
+    struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
     addr.sin_family      = AF_INET;
     addr.sin_port        = _htons(port);
     addr.sin_addr.s_addr = nmi_inet_addr((char *)pc_ip);
@@ -257,14 +314,11 @@ int Uploader_SendFile(const char *fatfs_path, const char *pc_ip, uint16_t port, 
     registerSocketCallback(uploader_socket_cb, uploader_dns_cb);
 
     /* No header (raw) */
-    s_hdr_len = 0;
-    s_hdr_off = 0;
+    s_hdr_len = 0; s_hdr_off = 0;
 
     /* Create + connect */
     s_state = ST_CONNECTING;
-    s_errno = 0;
-    s_total_sent = 0;
-    s_br = 0;
+    s_errno = 0; s_total_sent = 0; s_br = 0;
 
     s_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (s_sock < 0) {
@@ -290,9 +344,10 @@ int Uploader_SendFileHTTP(const char *fatfs_path, const char *pc_ip, uint16_t po
 {
     if (!fatfs_path || !pc_ip) return -1;
 
+    _reset_state();
+
     /* Get file size for Content-Length */
-    FILINFO finfo;
-    memset(&finfo, 0, sizeof(finfo));
+    FILINFO finfo; memset(&finfo, 0, sizeof(finfo));
     FRESULT frs = f_stat(fatfs_path, &finfo);
     if (frs != FR_OK) {
         printf("Uploader: f_stat('%s') error %u\r\n", fatfs_path, (unsigned)frs);
@@ -305,6 +360,8 @@ int Uploader_SendFileHTTP(const char *fatfs_path, const char *pc_ip, uint16_t po
         printf("Uploader: f_open('%s') error %u\r\n", fatfs_path, (unsigned)fr);
         return -3;
     }
+    strncpy(s_path, fatfs_path, sizeof(s_path)-1);
+    s_path[sizeof(s_path)-1] = '\0';
 
     /* Build HTTP header */
     const char *ct  = content_type ? content_type : "text/plain";
@@ -322,12 +379,10 @@ int Uploader_SendFileHTTP(const char *fatfs_path, const char *pc_ip, uint16_t po
         f_close(&s_fil);
         return -4;
     }
-    s_hdr_len = (uint16_t)n;
-    s_hdr_off = 0;
+    s_hdr_len = (uint16_t)n; s_hdr_off = 0;
 
     /* sockaddr from dotted IP */
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
+    struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
     addr.sin_family      = AF_INET;
     addr.sin_port        = _htons(port);
     addr.sin_addr.s_addr = nmi_inet_addr((char *)pc_ip);
@@ -338,9 +393,7 @@ int Uploader_SendFileHTTP(const char *fatfs_path, const char *pc_ip, uint16_t po
 
     /* Create + connect */
     s_state = ST_CONNECTING;
-    s_errno = 0;
-    s_total_sent = 0;
-    s_br = 0;
+    s_errno = 0; s_total_sent = 0; s_br = 0;
 
     s_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (s_sock < 0) {
@@ -363,16 +416,26 @@ int Uploader_SendFileHTTP(const char *fatfs_path, const char *pc_ip, uint16_t po
     return r;
 }
 
-/* Hostname (DNS) variant for ngrok/tunnels/etc.  Add the prototype to your header if you plan to call it. */
+/* Hostname (DNS) variant for ngrok/tunnels/etc.) */
 int Uploader_SendFileHost(const char *fatfs_path,
                           const char *host, uint16_t port, uint32_t timeout_ms)
 {
     if (!fatfs_path || !host) return -1;
 
+    _reset_state();
+
     FRESULT fr = f_open(&s_fil, fatfs_path, FA_READ);
     if (fr != FR_OK) {
         printf("Uploader: f_open('%s') error %u\r\n", fatfs_path, (unsigned)fr);
         return -2;
+    }
+    strncpy(s_path, fatfs_path, sizeof(s_path)-1);
+    s_path[sizeof(s_path)-1] = '\0';
+
+    /* Print size once */
+    FILINFO fi; memset(&fi, 0, sizeof(fi));
+    if (f_stat(fatfs_path, &fi) == FR_OK) {
+        printf("Uploader: %s size=%lu bytes\r\n", fatfs_path, (unsigned long)fi.fsize);
     }
 
     socketInit();
@@ -403,21 +466,17 @@ int Uploader_SendFileHost(const char *fatfs_path,
     }
 
     /* No header (raw) */
-    s_hdr_len = 0;
-    s_hdr_off = 0;
+    s_hdr_len = 0; s_hdr_off = 0;
 
     /* Build sockaddr from resolved IP */
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
+    struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
     addr.sin_family      = AF_INET;
     addr.sin_port        = _htons(port);
     addr.sin_addr.s_addr = s_resolved_ip; /* already network byte order */
 
     /* Create + connect */
     s_state = ST_CONNECTING;
-    s_errno = 0;
-    s_total_sent = 0;
-    s_br = 0;
+    s_errno = 0; s_total_sent = 0; s_br = 0;
 
     s_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (s_sock < 0) {

@@ -16,3 +16,7 @@ void CANLogger_SetLoopback(bool enable);
 
 /* True after Init succeeded and file is open. */
 bool CANLogger_Ready(void);
+
+int  CANLogger_Suspend(void);
+
+int CANLogger_Resume(void);

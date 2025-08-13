@@ -20,6 +20,9 @@ DSTATUS SDCard_Init(void);
  */
 void SDCard_TestFileIO(void);
 
+int SDCard_IsMounted(void);
+
+
 #ifdef __cplusplus
 }
 #endif

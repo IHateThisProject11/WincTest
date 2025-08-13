@@ -171,53 +171,100 @@ DSTATUS disk_status(BYTE pdrv) {
 /*-----------------------------------------------------------------------*/
 /* Read Sector(s)                                                        */
 /*-----------------------------------------------------------------------*/
-DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count) {
-    if (pdrv || !count) return RES_PARERR;
-    if (Stat & STA_NOINIT) return RES_NOTRDY;
+/*-----------------------------------------------------------------------*/
+/* Read Sector(s) – now supports count > 1 by looping CMD17              */
+/*-----------------------------------------------------------------------*/
+DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
+{
+    if (pdrv || !count)      return RES_PARERR;
+    if (Stat & STA_NOINIT)   return RES_NOTRDY;
 
-    if (count == 1) {
-        if (send_cmd(17, sd_addr(sector)) == 0 && rcvr_datablock(buff))
-            count = 0;
-    } else {
-        return RES_PARERR;  /* multi-block not implemented */
+    for (UINT i = 0; i < count; i++) {
+        /* Send CMD17 for each sector */
+        if (send_cmd(17, sd_addr(sector + i)) != 0) {
+            /* De-select and fail */
+            SDCARD_CS_HIGH();
+            spi_xfer(0xFF);
+            return RES_ERROR;
+        }
+        /* Read one 512-byte block */
+        if (!rcvr_datablock(buff + (i * 512))) {
+            SDCARD_CS_HIGH();
+            spi_xfer(0xFF);
+            return RES_ERROR;
+        }
+
+        /* Finish this transaction cleanly before next sector */
+        SDCARD_CS_HIGH();
+        spi_xfer(0xFF);
     }
 
-    SDCARD_CS_HIGH();
-    spi_xfer(0xFF);
-    return count ? RES_ERROR : RES_OK;
+    return RES_OK;
 }
 
 #if FF_FS_READONLY == 0
 /*-----------------------------------------------------------------------*/
-/* Write Sector(s)                                                       */
+/* Write Sector(s) – now supports count > 1 by looping CMD24             */
 /*-----------------------------------------------------------------------*/
-DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count) {
-    if (pdrv || !count) return RES_PARERR;
-    if (Stat & STA_NOINIT) return RES_NOTRDY;
+DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count)
+{
+    if (pdrv || !count)      return RES_PARERR;
+    if (Stat & STA_NOINIT)   return RES_NOTRDY;
 
-    if (count == 1) {
-        /* CMD24: write single */
-        if (send_cmd(24, sd_addr(sector)) == 0) {
+    for (UINT i = 0; i < count; i++) {
+        /* CMD24: write single block */
+        if (send_cmd(24, sd_addr(sector + i)) != 0) {
+            SDCARD_CS_HIGH();
             spi_xfer(0xFF);
-            spi_xfer(0xFE);          /* data token */
-            HAL_SPI_Transmit(&hspi3, (uint8_t*)buff, 512, HAL_MAX_DELAY);
-            spi_xfer(0xFF); spi_xfer(0xFF);  /* dummy CRC */
-            /* check data response token */
-            if ((spi_xfer(0xFF) & 0x1F) == 0x05) {
-                /* wait until write is done */
-                while (spi_xfer(0xFF) == 0) ;
+            return RES_ERROR;
+        }
+
+        /* One byte gap before token per many app notes */
+        spi_xfer(0xFF);
+
+        /* Data token */
+        spi_xfer(0xFE);
+
+        /* Push 512 bytes */
+        HAL_StatusTypeDef st = HAL_SPI_Transmit(&hspi3,
+                                                (uint8_t const*)(buff + (i * 512)),
+                                                512, HAL_MAX_DELAY);
+        if (st != HAL_OK) {
+            SDCARD_CS_HIGH();
+            spi_xfer(0xFF);
+            return RES_ERROR;
+        }
+
+        /* Dummy CRC (not checked in SPI mode) */
+        spi_xfer(0xFF);
+        spi_xfer(0xFF);
+
+        /* Data response: 0bXXX0_0101 = accepted */
+        uint8_t resp = spi_xfer(0xFF);
+        if ((resp & 0x1F) != 0x05) {
+            SDCARD_CS_HIGH();
+            spi_xfer(0xFF);
+            return RES_ERROR;
+        }
+
+        /* Busy wait until card releases (returns 0xFF) */
+        uint32_t tmo = HAL_GetTick() + 500;
+        while (spi_xfer(0xFF) == 0x00) {
+            if (HAL_GetTick() > tmo) {
+                SDCARD_CS_HIGH();
+                spi_xfer(0xFF);
+                return RES_ERROR;
             }
         }
-    } else {
-        return RES_PARERR;
+
+        /* Finish this transaction before next sector */
+        SDCARD_CS_HIGH();
+        spi_xfer(0xFF);
     }
 
-
-    SDCARD_CS_HIGH();
-    spi_xfer(0xFF);
     return RES_OK;
 }
-#endif
+#endif /* FF_FS_READONLY == 0 */
 
 /*-----------------------------------------------------------------------*/
 /* Miscellaneous Functions                                               */

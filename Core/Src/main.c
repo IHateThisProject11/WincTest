@@ -443,8 +443,8 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, RESET_WINC_Pin|SD_CS_Pin, GPIO_PIN_RESET);
-
+  HAL_GPIO_WritePin(GPIOB, RESET_WINC_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);  // SD CS idle HIGH
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_SET);
 

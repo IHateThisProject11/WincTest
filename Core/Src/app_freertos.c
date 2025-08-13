@@ -56,6 +56,7 @@ osMutexId_t      g_sdMutex; // <-- correct type
 static void DebounceButtonAndSignal(void);
 
 
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -205,7 +206,9 @@ void StartDefaultTask(void *argument)
 
 	  for (;;)
 	  {
+
 	    DebounceButtonAndSignal();      // posts EVT_BTN_PRESSED on falling edge
+
 	    osDelay(10);
 	  }
 
@@ -235,7 +238,7 @@ void StartTask02(void *argument)
 	      (void)osEventFlagsSet(g_sysEvt, EVT_HAS_IP);
 	    }
 
-	    // 250 ms heartbeat (optional)
+	//     250 ms heartbeat (optional)
 	    if (HAL_GetTick() - t0 >= 250) {
 	      extern volatile uint32_t g_irq_exti_fired, g_irq_bsp_isr, g_wifi_ticks;
 	      uint32_t e = g_irq_exti_fired, b = g_irq_bsp_isr, w = g_wifi_ticks;
@@ -332,10 +335,10 @@ void StartTask04(void *argument)
 	     // Upload (serialize all SD access under the same mutex)
 	     osMutexAcquire(g_sdMutex, osWaitForever);
 	     CANLogger_Suspend();
-
+	     SDCard_Quiesce();
 	     int rc = Uploader_SendFileHost("0:/can_log.csv",
 	                                    "2.tcp.us-cal-1.ngrok.io",
-	                                    11686,
+	                                    11668,
 	                                    60000);
 	     CANLogger_Resume();
 	     osMutexRelease(g_sdMutex);

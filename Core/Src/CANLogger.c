@@ -52,6 +52,9 @@ static volatile uint32_t s_irq_rx        = 0;
 static volatile uint32_t s_fifo_full     = 0;
 static volatile uint32_t s_fifo_lost     = 0;
 static volatile uint32_t s_write_err     = 0;
+/* Remember the file path so we can reopen and seek on a read retry */
+static char s_path[64] = {0};
+
 
 /* ---------- Optional ring for CSV lines ---------- */
 #if (CANLOG_USE_ISR_WRITES == 0)
@@ -245,37 +248,51 @@ static int _fdcan_setup(void)
 
 int CANLogger_Init(void)
 {
-    /* Open/append the CSV file */
-//    FRESULT fr = f_open(&s_fil, CANCSV_PATH, FA_OPEN_APPEND | FA_WRITE);
-//    if (fr != FR_OK) {
-//        printf("CANCSV: f_open('%s') failed rc=%u\r\n", CANCSV_PATH, (unsigned)fr);
-//        return -1;
-//    }
-	// was: f_open(&s_fil, CANCSV_PATH, FA_OPEN_APPEND | FA_WRITE);
-	FRESULT fr = f_open(&s_fil, CANCSV_PATH, FA_OPEN_ALWAYS | FA_WRITE);
-	if (fr == FR_OK) {
-	    f_lseek(&s_fil, f_size(&s_fil));  // move to end to append
-	}
+    /* Always bring up the CAN peripheral & filters */
+    _fdcan_setup();  /* your existing helper that configures FDCAN */
+    /* Optionally print your CAN timing banner here */
 
-    s_file_open = true;
-    _maybe_write_header();
+    if (s_file_open) return 0;
 
-    /* Configure filters and start FDCAN */
-    int rc = _fdcan_setup();
-    if (rc != 0) {
-        printf("CANCSV: FDCAN setup failed rc=%d\r\n", rc);
+    FRESULT fr = f_open(&s_fil, CANCSV_PATH, FA_OPEN_ALWAYS | FA_WRITE);
+    if (fr != FR_OK) {
+        printf("CANLogger_Init: f_open error (%u)\r\n", (unsigned)fr);
+        s_file_open = false;   /* non-fatal; Tick() will retry */
+        return -1;
+    }
+
+    FSIZE_t sz = f_size(&s_fil);
+    if (f_lseek(&s_fil, sz) != FR_OK) {
         f_close(&s_fil);
         s_file_open = false;
-        return rc;
+        return -2;
     }
+
+    if (sz == 0) {
+        _maybe_write_header();
+        f_sync(&s_fil); /* commit dir entry + header */
+    }
+
+    s_file_open = true;
     printf("CANCSV: logging to %s\r\n", CANCSV_PATH);
     return 0;
 }
+
 
 void CANLogger_Tick(void)
 {
     uint32_t now = HAL_GetTick();
 
+    // Retry open if needed
+    static uint32_t last_try = 0;
+    if (!s_file_open && (now - last_try) >= 250U) {
+        last_try = now;
+        if (f_open(&s_fil, CANCSV_PATH, FA_OPEN_ALWAYS | FA_WRITE) == FR_OK) {
+            f_lseek(&s_fil, f_size(&s_fil));
+            if (f_size(&s_fil) == 0) { _maybe_write_header(); f_sync(&s_fil); }
+            s_file_open = true;
+        }
+    }
 #if (CANLOG_USE_ISR_WRITES == 0)
     if (s_file_open) {
         csv_t item;
