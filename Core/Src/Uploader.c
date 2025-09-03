@@ -71,6 +71,8 @@ static volatile uint8_t          s_dns_done    = 0;
 /* ---------------- Helpers ---------------- */
 static inline uint32_t _millis(void) { return HAL_GetTick(); }
 extern int SDCard_ForceReinit(void);   /* from SDCard.c */
+extern void SDCard_Quiesce(void);
+extern int  SDCard_ForceReinit(void);
 
 static int _expired(uint32_t dl_ms) {
     return (dl_ms != 0u) && (_millis() >= dl_ms);
@@ -133,16 +135,26 @@ static int _read_next_chunk(void)
     if (fr == FR_OK) {
         s_read_retried = 0;
         s_br = n;
-        return (n > 0) ? 1 : 0;   /* 1=data, 0=EOF */
+        return (n > 0) ? 1 : 0;     /* 1=data, 0=EOF */
     }
 
+    /* 1) Gentle retry once: sync/clock poke, re-read */
     if (fr == FR_DISK_ERR && s_read_retried == 0) {
         s_read_retried = 1;
         printf("Uploader: f_read FR_DISK_ERR at %lu, reinit + retry...\r\n",
                (unsigned long)s_total_sent);
 
-        f_close(&s_fil);
+        /* Quiesce the bus without tearing down the FS */
+        SDCard_Quiesce();
+        n  = 0;
+        fr = f_read(&s_fil, s_buf, sizeof(s_buf), &n);
+        if (fr == FR_OK) {
+            s_br = n;
+            return (n > 0) ? 1 : 0;
+        }
 
+        /* 2) Harder retry: close, mount again, reopen + seek, re-read */
+        f_close(&s_fil);
         if (SDCard_ForceReinit() == 0 &&
             f_open(&s_fil, s_path, FA_READ | FA_OPEN_EXISTING) == FR_OK &&
             f_lseek(&s_fil, (FSIZE_t)s_total_sent) == FR_OK)

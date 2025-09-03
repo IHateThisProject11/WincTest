@@ -272,6 +272,10 @@ void StartTask03(void *argument)
 
 	  osMutexAcquire(g_sdMutex, osWaitForever);
 	  int rc_sd = SDCard_Init();               // 0 = OK
+	  if (rc_sd == 0) {
+	    SDCard_Quiesce();              // << add this
+	    osDelay(10);                   // << and this very short pause
+	  }
 	  osMutexRelease(g_sdMutex);
 	  printf("CAN: SDCard_Init rc=%d\r\n", rc_sd);
 
@@ -291,7 +295,7 @@ void StartTask03(void *argument)
 	    osMutexAcquire(g_sdMutex, osWaitForever);
 	    CANLogger_Tick();                      // drains ring + periodic f_sync
 	    osMutexRelease(g_sdMutex);
-	    osDelay(50);
+	    osDelay(10);
 	  }
 
   /* USER CODE END CANLogTask */

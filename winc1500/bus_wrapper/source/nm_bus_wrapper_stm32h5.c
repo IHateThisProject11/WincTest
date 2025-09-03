@@ -239,50 +239,50 @@ void nm_bus_wifi_spi_init(SPI_HandleTypeDef *SPI_WIFI_HANDLE )
 *	@return	M2M_SUCCESS in case of success and M2M_ERR_BUS_FAIL in case of failure
 */
 
-//sint8 nm_bus_init(void *pvinit)
-//{
-//	sint8 result = M2M_SUCCESS;
-//
-//	 /* WiFi SPI init function - called from nm_bus_init() */
-//
-//	SPI_WIFI_HANDLE.Instance			   = SPI_WIFI;
-//	SPI_WIFI_HANDLE.Init.Mode			   = SPI_MODE_MASTER;
-//	SPI_WIFI_HANDLE.Init.Direction 	   = SPI_DIRECTION_2LINES;
-//	SPI_WIFI_HANDLE.Init.DataSize		   = SPI_DATASIZE_8BIT;
-//	SPI_WIFI_HANDLE.Init.CLKPolarity	   = SPI_POLARITY_LOW;
-//	SPI_WIFI_HANDLE.Init.CLKPhase		   = SPI_PHASE_1EDGE;
-//	SPI_WIFI_HANDLE.Init.NSS			   = SPI_NSS_SOFT;
-//	SPI_WIFI_HANDLE.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
-//	SPI_WIFI_HANDLE.Init.FirstBit		   = SPI_FIRSTBIT_MSB;
-//	SPI_WIFI_HANDLE.Init.TIMode		   = SPI_TIMODE_DISABLE;
-//	SPI_WIFI_HANDLE.Init.CRCCalculation   = SPI_CRCCALCULATION_DISABLE;
-//	SPI_WIFI_HANDLE.Init.CRCPolynomial    = 10;
-//	SPI_WIFI_HANDLE.Init.CRCLength		 = SPI_CRC_LENGTH_DATASIZE;
-//	SPI_WIFI_HANDLE.Init.NSSPMode		 = SPI_NSS_PULSE_DISABLE;
-//	if (HAL_SPI_Init(&SPI_WIFI_HANDLE) != HAL_OK)
-//	{
-//		M2M_ERR("SPI bus Initialization error\r\n");
-//	}
-//
-//	HAL_SPI_MspInit(&SPI_WIFI_HANDLE);
-//	return result;
-//}
-//temporary fix
 sint8 nm_bus_init(void *pvinit)
 {
-    nm_bus_wifi_spi_init(NULL);        // <-- only GPIO, no SPI!
+    // Configure SPI pins & CS first
+    nm_bus_wifi_spi_init(NULL);
+
+    // Init SPI peripheral at LOW speed for safe wake
+    SPI_WIFI_HANDLE.Instance               = SPI_WIFI;
+    SPI_WIFI_HANDLE.Init.Mode              = SPI_MODE_MASTER;
+    SPI_WIFI_HANDLE.Init.Direction         = SPI_DIRECTION_2LINES;
+    SPI_WIFI_HANDLE.Init.DataSize          = SPI_DATASIZE_8BIT;
+    SPI_WIFI_HANDLE.Init.CLKPolarity       = SPI_POLARITY_LOW;
+    SPI_WIFI_HANDLE.Init.CLKPhase          = SPI_PHASE_1EDGE;     // Mode 0
+    SPI_WIFI_HANDLE.Init.NSS               = SPI_NSS_SOFT;
+    SPI_WIFI_HANDLE.Init.BaudRatePrescaler = CONF_WINC_SPI_LOW_BAUD_PRESCALER;
+    SPI_WIFI_HANDLE.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+    SPI_WIFI_HANDLE.Init.TIMode            = SPI_TIMODE_DISABLE;
+    SPI_WIFI_HANDLE.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+    SPI_WIFI_HANDLE.Init.CRCPolynomial     = 10;
+    SPI_WIFI_HANDLE.Init.CRCLength         = SPI_CRC_LENGTH_DATASIZE;
+    SPI_WIFI_HANDLE.Init.NSSPMode          = SPI_NSS_PULSE_DISABLE;
+
+    if (HAL_SPI_Init(&SPI_WIFI_HANDLE) != HAL_OK) {
+        M2M_ERR("SPI bus Initialization error\r\n");
+        return M2M_ERR_BUS_FAIL;
+    }
     return M2M_SUCCESS;
 }
-/*
-*	@fn		nm_bus_ioctl
-*	@brief	send/receive from the bus
-*	@param[IN]	u8Cmd
-*					IOCTL command for the operation
-*	@param[IN]	pvParameter
-*					Arbitrary parameter depenging on IOCTL
-*	@return	M2M_SUCCESS in case of success and M2M_ERR_BUS_FAIL in case of failure
-*	@note	For SPI only, it's important to be able to send/receive at the same time
-*/
+
+//temporary fix
+//sint8 nm_bus_init(void *pvinit)
+//{
+//    nm_bus_wifi_spi_init(NULL);        // <-- only GPIO, no SPI!
+//    return M2M_SUCCESS;
+//}
+///*
+//*	@fn		nm_bus_ioctl
+//*	@brief	send/receive from the bus
+//*	@param[IN]	u8Cmd
+//*					IOCTL command for the operation
+//*	@param[IN]	pvParameter
+//*					Arbitrary parameter depenging on IOCTL
+//*	@return	M2M_SUCCESS in case of success and M2M_ERR_BUS_FAIL in case of failure
+//*	@note	For SPI only, it's important to be able to send/receive at the same time
+//*/
 sint8 nm_bus_ioctl(uint8 u8Cmd, void* pvParameter)
 {
 	sint8 s8Ret = 0;

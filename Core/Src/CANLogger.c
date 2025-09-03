@@ -17,7 +17,6 @@ extern FDCAN_HandleTypeDef hfdcan1;
 #define CANCSV_FLUSH_EVERY  50u   /* flush file every N frames */
 #endif
 
-/* Human-readable mode name for a one-line init print */
 static const char* _mode_str(uint32_t m) {
     switch (m) {
         case FDCAN_MODE_NORMAL:               return "NORMAL";
@@ -35,6 +34,8 @@ static FIL s_fil;
 static bool s_file_open   = false;
 static bool s_loopback    = false;
 static uint32_t s_rx_count = 0;
+static bool s_paused = false;
+
 
 /* ---------- Debug toggles ---------- */
 #ifndef CANDBG_PRINT_FIRST_N
@@ -54,6 +55,7 @@ static volatile uint32_t s_fifo_lost     = 0;
 static volatile uint32_t s_write_err     = 0;
 /* Remember the file path so we can reopen and seek on a read retry */
 static char s_path[64] = {0};
+static int _fdcan_setup(void);
 
 
 /* ---------- Optional ring for CSV lines ---------- */
@@ -77,19 +79,50 @@ static inline int _qpop(csv_t* out){
 #endif
 
 int CANLogger_Suspend(void) {
-    if (s_file_open) { f_sync(&s_fil); f_close(&s_fil); s_file_open = false; }
+    s_paused = true;
+
+    /* Stop FDCAN + RX notifications so ISR won’t fire while we upload */
+    uint32_t its = FDCAN_IT_RX_FIFO0_NEW_MESSAGE |
+                   FDCAN_IT_RX_FIFO0_FULL |
+                   FDCAN_IT_RX_FIFO0_MESSAGE_LOST;
+    (void)HAL_FDCAN_DeactivateNotification(&hfdcan1, its);
+    (void)HAL_FDCAN_Stop(&hfdcan1);
+
+    /* Flush and close the file so FatFs is quiescent */
+    if (s_file_open) {
+        f_sync(&s_fil);
+        f_close(&s_fil);
+        s_file_open = false;
+    }
+
+#if (CANLOG_USE_ISR_WRITES == 0)
+    /* Drop any queued lines so we don't “replay” stale backlog after upload */
+    s_qt = s_qh;
+#endif
     return 0;
 }
 
 int CANLogger_Resume(void) {
+    /* Bring CAN back up first so we don’t miss frames after resume */
+    (void)_fdcan_setup();   /* reconfigure filters + start + notifications */
+
+    /* Reopen / append the CSV */
     if (!s_file_open) {
         FRESULT fr = f_open(&s_fil, CANCSV_PATH, FA_OPEN_ALWAYS | FA_WRITE);
         if (fr != FR_OK) return -1;
         f_lseek(&s_fil, f_size(&s_fil));
+        if (f_size(&s_fil) == 0) {
+            const char *hdr = "ms,id_type,id_hex,dlc,d0,d1,d2,d3,d4,d5,d6,d7\r\n";
+            UINT bw=0; f_write(&s_fil, hdr, (UINT)strlen(hdr), &bw);
+            f_sync(&s_fil);
+        }
         s_file_open = true;
     }
+
+    s_paused = false;
     return 0;
 }
+
 
 /* Map FDCAN DLC macro to byte length (classic 0..8) */
 static uint8_t _dlc_bytes(uint32_t dlc) {
@@ -123,6 +156,7 @@ static void _maybe_write_header(void) {
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t itflags)
 {
     if (hfdcan != &hfdcan1) return;
+    if (s_paused) return;  // nothing to do while uploads are in-flight
 
     if (itflags & FDCAN_IT_RX_FIFO0_FULL) {
         s_fifo_full++;
