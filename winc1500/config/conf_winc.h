@@ -26,12 +26,8 @@ extern SPI_HandleTypeDef hspi1;
 #define CONF_WINC_USE_SPI               (1)
 #define CONF_WINC_SPI_HANDLE            hspi1
 #define CONF_WINC_SPI                   SPI1
-//#define CONF_WINC_SPI_BAUD_PRESCALER    SPI_BAUDRATEPRESCALER_2
-//#define CONF_WINC_SPI_LOW_BAUD_PRESCALER SPI_BAUDRATEPRESCALER_8
-
-#define CONF_WINC_SPI_BAUD_PRESCALER     SPI_BAUDRATEPRESCALER_16   // “HIGH” ~moderate
-#define CONF_WINC_SPI_LOW_BAUD_PRESCALER SPI_BAUDRATEPRESCALER_128  // “LOW” ~very safe
-
+#define CONF_WINC_SPI_BAUD_PRESCALER    SPI_BAUDRATEPRESCALER_2
+#define CONF_WINC_SPI_LOW_BAUD_PRESCALER SPI_BAUDRATEPRESCALER_8
 
 /* Chip-select -------------------------------------------------------------- */
 #define CONF_WINC_SPI_CS_PORT           GPIOC
