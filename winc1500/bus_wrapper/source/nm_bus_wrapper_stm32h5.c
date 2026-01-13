@@ -52,6 +52,8 @@
 #include "bus_wrapper/include/nm_bus_wrapper.h"
 #include "conf_winc.h"
 #include "nm_bus_wrapper.h"
+#include "nm_common.h"    // for LOW / HIGH
+#include "main.h"
 
 
 #define NM_BUS_MAX_TRX_SZ	256
@@ -78,10 +80,14 @@ static void spi_select_slave(const uint8_t select)
     if (select)
     {
         HAL_GPIO_WritePin(SPI_WIFI_CS_GPIO_PORT,SPI_WIFI_CS_PIN,GPIO_PIN_RESET);
+        M2M_ERR("[BSP SPI] nm_spi_rw: exiting on gpio reset\n");
+
     }
     else
     {
         HAL_GPIO_WritePin(SPI_WIFI_CS_GPIO_PORT,SPI_WIFI_CS_PIN,GPIO_PIN_SET);
+        M2M_ERR("[BSP SPI] nm_spi_rw: exiting on gpio set\n");
+
     }
 }
 
@@ -315,3 +321,20 @@ sint8 nm_bus_reinit(void* config)
 	return M2M_SUCCESS;
 }
 
+sint8 nm_bus_speed(uint8 u8Speed)
+{
+    /* de-init current SPI bus */
+    HAL_SPI_DeInit(&SPI_WIFI_HANDLE);
+
+    /* pick either slow or fast prescaler */
+    if (u8Speed == LOW) {
+        SPI_WIFI_HANDLE.Init.BaudRatePrescaler = CONF_WINC_SPI_LOW_BAUD_PRESCALER;
+    } else {
+        SPI_WIFI_HANDLE.Init.BaudRatePrescaler = CONF_WINC_SPI_BAUD_PRESCALER;
+    }
+
+    /* re-init SPI with new speed */
+    HAL_SPI_Init(&SPI_WIFI_HANDLE);
+
+    return M2M_SUCCESS;
+}

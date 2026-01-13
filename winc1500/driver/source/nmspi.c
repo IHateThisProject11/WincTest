@@ -657,6 +657,8 @@ _RETRY_:
 	}
 
 	result = spi_cmd(cmd, addr, 0, 4, clockless);
+	M2M_DBG("[DBG cmd] spi_cmd(cmd=0x%02x, addr=0x%08lx) → %d\n",
+	            cmd, (unsigned long)addr, result);
 	if (result != N_OK) {
 		M2M_ERR("[nmi spi]: Failed cmd, read reg (%08x)...\n", (unsigned int)addr);
 		goto _FAIL_;
@@ -670,6 +672,8 @@ _RETRY_:
 
 	/* to avoid endianness issues */
 	result = spi_data_read(&tmp[0], 4, clockless);
+	M2M_DBG("[DBG data] spi_data_read → %d, buf = %02x %02x %02x %02x\n",
+	            result, tmp[0], tmp[1], tmp[2], tmp[3]);
 	if (result != N_OK) {
 		M2M_ERR("[nmi spi]: Failed data read...\n");
 		goto _FAIL_;
@@ -840,6 +844,8 @@ sint8 nm_spi_init(void)
 		M2M_ERR("[nmi spi]: Fail cmd read chip id...\n");
 		return M2M_ERR_BUS_FAIL;
 	}
+    M2M_DBG("[DBG init] chipid read = 0x%08lx\n", (unsigned long)chipid);
+
 
 	M2M_DBG("[nmi spi]: chipid (%08x)\n", (unsigned int)chipid);
 	spi_init_pkt_sz();

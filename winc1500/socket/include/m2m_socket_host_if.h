@@ -151,7 +151,7 @@ MACROS
 */
 
 
-#define SOCKET_CMD_SSL_SEND					0x4C	
+#define SOCKET_CMD_SSL_SEND					0x4C
 /*!< 
 	SSL-Socket Send command value.
 */	

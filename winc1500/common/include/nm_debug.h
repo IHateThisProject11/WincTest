@@ -42,6 +42,11 @@
  * @ingroup WlanDefines
  */
 /**@{*/
+// at the top of nm_debug.h
+#define NM_DEBUG            1   /* ensure debug is on */
+#define M2M_PRINT           printf
+#define M2M_ERR(...)        M2M_PRINT("[ERR] " __VA_ARGS__)
+#define M2M_DBG(...)        M2M_PRINT("[DBG] " __VA_ARGS__)
 
 
 #define M2M_LOG_NONE									0

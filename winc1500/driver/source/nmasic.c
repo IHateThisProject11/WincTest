@@ -55,13 +55,6 @@
 #define TIMEOUT						(0x2000ul)
 #define WAKUP_TRAILS_TIMEOUT		(4)
 
-/* debug code */
-#define GP_HANDSHAKE_TIMEOUT 10000  // adjust as you like
-
-sint8 ret;
-uint32_t timeout = 0;
-/* debug code */
-
 sint8 chip_apply_conf(uint32 u32Conf)
 {
 	sint8 ret = M2M_SUCCESS;
@@ -89,45 +82,19 @@ sint8 chip_apply_conf(uint32 u32Conf)
 #endif
 
 	val32 |= rHAVE_RESERVED1_BIT;
-//	do  {
-//		nm_write_reg(rNMI_GP_REG_1, val32);
-//		if(val32 != 0) {
-//			uint32 reg = 0;
-//			ret = nm_read_reg_with_ret(rNMI_GP_REG_1, &reg);
-//			if(ret == M2M_SUCCESS) {
-//				if(reg == val32)
-//					break;
-//			}
-//		} else {
-//			break;
-//		}
-//	} while(1);
-
-	do {
-	    nm_write_reg(rNMI_GP_REG_1, val32);
-
-	    if (val32 != 0) {
-	        uint32 reg = 0;
-	        ret = nm_read_reg_with_ret(rNMI_GP_REG_1, &reg);
-
-	        M2M_INFO("GP_REG handshake: wrote 0x%08lx, read 0x%08lx, ret=%d, iter=%lu\n",
-	                 (long)val32, (long)reg, (int)ret, (unsigned long)timeout);
-
-	        if (ret == M2M_SUCCESS && reg == val32) {
-	            M2M_INFO("GP_REG handshake succeeded after %lu iterations\n", (unsigned long)timeout);
-	            break;
-	        }
-	    } else {
-	        break;
-	    }
-
-	    if (++timeout >= GP_HANDSHAKE_TIMEOUT) {
-	        M2M_ERR("GP_REG handshake timed out after %lu iterations\n", (unsigned long)timeout);
-	        break;
-	    }
-
-	    nm_bsp_sleep(1);
-	} while (1);
+	do  {
+		nm_write_reg(rNMI_GP_REG_1, val32);
+		if(val32 != 0) {		
+			uint32 reg = 0;
+			ret = nm_read_reg_with_ret(rNMI_GP_REG_1, &reg);
+			if(ret == M2M_SUCCESS) {
+				if(reg == val32)
+					break;
+			}
+		} else {
+			break;
+		}
+	} while(1);
 
 	return M2M_SUCCESS;
 }
@@ -343,6 +310,8 @@ sint8 chip_wake(void)
 	sint8 ret = M2M_SUCCESS;
 	uint32 reg = 0, clk_status_reg = 0,trials = 0;
 
+	nm_bus_speed(LOW);
+
 	ret = nm_read_reg_with_ret(HOST_CORT_COMM, &reg);
 	if(ret != M2M_SUCCESS)goto _WAKE_EXIT;
 	
@@ -386,6 +355,7 @@ sint8 chip_wake(void)
 	nm_bus_reset();
 	
 _WAKE_EXIT:
+	nm_bus_speed(HIGH);
 	return ret;
 }
 sint8 cpu_halt(void)
@@ -691,5 +661,3 @@ sint8 nmi_get_mac_address(uint8 *pu8MacAddr)
 _EXIT_ERR:
 	return ret;
 }
-
-

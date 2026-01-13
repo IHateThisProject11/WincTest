@@ -35,11 +35,9 @@
 #ifndef _M2M_PERIPH_H_
 #define _M2M_PERIPH_H_
 
-
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
 INCLUDES
 *=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
-
 
 #include "common/include/nm_common.h"
 #include "driver/include/m2m_types.h"
@@ -201,13 +199,12 @@ NMI_API sint8 m2m_periph_gpio_get_val(uint8 u8GpioNum, uint8 *pu8GpioVal);
     The function returns @ref M2M_SUCCESS for success and a negative value otherwise.
 
 @sa
-	tenuPullupMask
+    tenuPullupMask
 */
 NMI_API sint8 m2m_periph_pullup_ctrl(uint32 pinmask, uint8 enable);
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif /* _M2M_PERIPH_H_ */
