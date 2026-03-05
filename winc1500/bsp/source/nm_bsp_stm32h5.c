@@ -109,8 +109,8 @@ sint8 nm_bsp_deinit(void)
     HAL_GPIO_WritePin(CONF_WINC_PORT_LEVEL_SHIFTER_ENABLE,CONF_WINC_PIN_LEVEL_SHIFTER_ENABLE,GPIO_PIN_SET);
     //HAL_GPIO_WritePin(GPIOA,CONF_WINC_PIN_CHIP_ENABLE,GPIO_PIN_RESET);
 	
-    HAL_GPIO_WritePin(GPIOA,CONF_WINC_PIN_CHIP_ENABLE,GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOC,CONF_WINC_PIN_RESET,GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(CONF_WINC_CHIP_EN_PORT,CONF_WINC_PIN_CHIP_ENABLE,GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(CONF_WINC_RESET_PORT,CONF_WINC_PIN_RESET,GPIO_PIN_RESET);
     nm_bsp_sleep(10);
 
 	return M2M_SUCCESS;
@@ -157,8 +157,8 @@ void nm_bsp_reset(void)
     HAL_GPIO_WritePin(CONF_WINC_RESET_PORT,
                       CONF_WINC_RESET_PIN, GPIO_PIN_SET);
 
-    /* Extra guard time before first SPI access */
-    HAL_Delay(2);
+    /* Extra guard time before first SPI access */ //changed delay from 2 to 50 to try and winc BOOT ROM
+    HAL_Delay(50);
 }
 
 

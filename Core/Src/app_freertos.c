@@ -67,29 +67,29 @@ static void DebounceButtonAndSignal(void);
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for WifiTask */
 osThreadId_t WifiTaskHandle;
 const osThreadAttr_t WifiTask_attributes = {
   .name = "WifiTask",
-  .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 4096
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
 };
 /* Definitions for CANLogTask */
 osThreadId_t CANLogTaskHandle;
 const osThreadAttr_t CANLogTask_attributes = {
   .name = "CANLogTask",
-  .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 4096
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
 };
 /* Definitions for UploadTask */
 osThreadId_t UploadTaskHandle;
 const osThreadAttr_t UploadTask_attributes = {
   .name = "UploadTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 2048
+  .stack_size = 128 * 4
 };
 
 /* Private function prototypes -----------------------------------------------*/

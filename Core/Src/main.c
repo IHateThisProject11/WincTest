@@ -352,7 +352,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
   hspi1.Init.CRCPolynomial = 0x7;
-  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  hspi1.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
   hspi1.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
   hspi1.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
   hspi1.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
@@ -440,11 +440,11 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, RESET_WINC_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);  // SD CS idle HIGH
+  HAL_GPIO_WritePin(GPIOB, RESET_WINC_Pin|SD_CS_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_SET);
 

@@ -223,12 +223,26 @@ void nm_bus_wifi_spi_init(SPI_HandleTypeDef *SPI_WIFI_HANDLE )
     /* ------------------------------------------------------------------
      * SPI1 on PA5/PA6/PA7  (AF5)  →  WINC1500 SCK/MISO/MOSI
      * ------------------------------------------------------------------ */
-    GPIO_InitStruct.Pin       = SPI_WIFI_SCK_PIN | SPI_WIFI_MISO_PIN | SPI_WIFI_MOSI_PIN;
+//    GPIO_InitStruct.Pin       = SPI_WIFI_SCK_PIN | SPI_WIFI_MISO_PIN | SPI_WIFI_MOSI_PIN;
+//    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+//    GPIO_InitStruct.Pull      = GPIO_NOPULL;
+//    GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+//    GPIO_InitStruct.Alternate = SPI_WIFI_AF;                  /* AF5-SPI1 */
+//    HAL_GPIO_Init(SPI_WIFI_SCK_GPIO_PORT, &GPIO_InitStruct);
+
+
+    // SCK + MOSI
+    GPIO_InitStruct.Pin       = SPI_WIFI_SCK_PIN | SPI_WIFI_MOSI_PIN;
     GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull      = GPIO_NOPULL;
     GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
-    GPIO_InitStruct.Alternate = SPI_WIFI_AF;                  /* AF5-SPI1 */
+    GPIO_InitStruct.Alternate = SPI_WIFI_AF;
     HAL_GPIO_Init(SPI_WIFI_SCK_GPIO_PORT, &GPIO_InitStruct);
+
+    // MISO (needs pull-up)
+    GPIO_InitStruct.Pin       = SPI_WIFI_MISO_PIN;
+    GPIO_InitStruct.Pull      = GPIO_PULLUP;
+    HAL_GPIO_Init(SPI_WIFI_MISO_GPIO_PORT, &GPIO_InitStruct);
 
 }
 
@@ -270,7 +284,9 @@ void nm_bus_wifi_spi_init(SPI_HandleTypeDef *SPI_WIFI_HANDLE )
 //temporary fix
 sint8 nm_bus_init(void *pvinit)
 {
-    nm_bus_wifi_spi_init(NULL);        // <-- only GPIO, no SPI!
+    HAL_SPI_DeInit(&SPI_WIFI_HANDLE); // added
+
+    nm_bus_wifi_spi_init(NULL);        //
     return M2M_SUCCESS;
 }
 /*
