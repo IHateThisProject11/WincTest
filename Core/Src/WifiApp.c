@@ -102,7 +102,6 @@ void wifi_cb(uint8_t u8MsgType, void *pvMsg)
 //
 //    printf("AP mode started. You can connect to %s.\r\n", MAIN_WLAN_SSID);
 //}
-
 static void winc_hardware_diag(void)
 {
     M2M_INFO("\r\n=== WINC HARDWARE DIAGNOSTIC ===\r\n");
@@ -123,82 +122,87 @@ static void winc_hardware_diag(void)
     HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(RESET_WINC_GPIO_Port, RESET_WINC_Pin, GPIO_PIN_RESET);
     HAL_Delay(100);
-
     M2M_INFO("Setting CHIP_EN=1\r\n");
     HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_SET);
     HAL_Delay(100);
-
     M2M_INFO("Setting RESET=1\r\n");
     HAL_GPIO_WritePin(RESET_WINC_GPIO_Port, RESET_WINC_Pin, GPIO_PIN_SET);
-    HAL_Delay(500);   // extra long wait for WINC boot
+    HAL_Delay(500);
 
     M2M_INFO("AFTER power-up:\r\n");
-    M2M_INFO("  CHIP_EN (PB1) = %d\r\n",
-           HAL_GPIO_ReadPin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin));
-    M2M_INFO("  RESET   (PB0) = %d\r\n",
-           HAL_GPIO_ReadPin(RESET_WINC_GPIO_Port, RESET_WINC_Pin));
     M2M_INFO("  IRQ     (PC4) = %d\r\n",
            HAL_GPIO_ReadPin(IRQ_WINC_PIN_GPIO_Port, IRQ_WINC_PIN_Pin));
     M2M_INFO("  MISO    (PA6) = %d\r\n",
            HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6));
+    M2M_INFO("=== END PRE-INIT DIAGNOSTIC ===\r\n\r\n");
+}
 
-    // --- SPI loopback test (NO CS, no WINC involved) ---
-    // This tests whether the SPI peripheral can read MISO at all.
-    // With WINC CS deasserted (high) and MISO pulled up,
-    // we should read 0xFF.
-    M2M_INFO("--- SPI test with CS HIGH (WINC deselected) ---\r\n");
-    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);
-
+static void winc_spi_diag_post_init(void)
+{
     extern SPI_HandleTypeDef hspi1;
-    uint8_t tx[4] = {0xAA, 0x55, 0xAA, 0x55};
-    uint8_t rx[4] = {0x00, 0x00, 0x00, 0x00};
-    HAL_StatusTypeDef st = HAL_SPI_TransmitReceive(&hspi1, tx, rx, 4, 100);
-    M2M_INFO("  HAL status=%d  RX: %02X %02X %02X %02X\r\n",
-           st, rx[0], rx[1], rx[2], rx[3]);
-    M2M_INFO("  (expect FF FF FF FF if MISO pull-up works)\r\n");
 
-    // --- SPI test WITH CS asserted (WINC selected) ---
-    M2M_INFO("--- SPI test with CS LOW (WINC selected) ---\r\n");
+    M2M_INFO("\r\n=== POST-INIT SPI DIAGNOSTIC ===\r\n");
+
+    // Test 1: CS HIGH (WINC deselected). MISO floats with pull-up.
+    // Should read FF FF FF FF.
+    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);
+    HAL_Delay(1);
+    uint8_t tx1[4] = {0xAA, 0x55, 0xAA, 0x55};
+    uint8_t rx1[4] = {0xDE, 0xDE, 0xDE, 0xDE};
+    HAL_StatusTypeDef st = HAL_SPI_TransmitReceive(&hspi1, tx1, rx1, 4, 100);
+    M2M_INFO("CS=HIGH: status=%d RX: %02X %02X %02X %02X (expect FF)\r\n",
+           st, rx1[0], rx1[1], rx1[2], rx1[3]);
+
+    // Test 2: CS LOW (WINC selected). Send CMD_SINGLE_READ for chip ID.
     HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_RESET);
     HAL_Delay(1);
-
-    uint8_t tx2[4] = {0xCA, 0x00, 0x10, 0x00};  // CMD_SINGLE_READ chipid
-    uint8_t rx2[4] = {0xDE, 0xDE, 0xDE, 0xDE};   // prefill so we can see if they change
-    st = HAL_SPI_TransmitReceive(&hspi1, tx2, rx2, 4, 100);
-    M2M_INFO("  HAL status=%d  RX: %02X %02X %02X %02X\r\n",
-           st, rx2[0], rx2[1], rx2[2], rx2[3]);
-    M2M_INFO("  (expect non-zero if WINC responding)\r\n");
-
+    uint8_t tx2[8] = {0xCA, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00};
+    uint8_t rx2[8] = {0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE};
+    st = HAL_SPI_TransmitReceive(&hspi1, tx2, rx2, 8, 100);
+    M2M_INFO("CS=LOW:  status=%d RX: %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+           st, rx2[0], rx2[1], rx2[2], rx2[3],
+           rx2[4], rx2[5], rx2[6], rx2[7]);
     HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);
 
-    M2M_INFO("=== END DIAGNOSTIC ===\r\n\r\n");
+    // Test 3: Read SPI registers directly to verify config
+    M2M_INFO("SPI1->CR1  = 0x%08lX\r\n", SPI1->CR1);
+    M2M_INFO("SPI1->CFG1 = 0x%08lX\r\n", SPI1->CFG1);
+    M2M_INFO("SPI1->CFG2 = 0x%08lX\r\n", SPI1->CFG2);
+    M2M_INFO("SPI1->SR   = 0x%08lX\r\n", SPI1->SR);
+
+    M2M_INFO("=== END POST-INIT DIAGNOSTIC ===\r\n\r\n");
 }
 
 
 void WifiApp_InitAP(void)
 {
-    /* 1. Bring up HAL/BSP */
-
-    winc_hardware_diag();   // <-- add this
+    winc_hardware_diag();
     nm_bsp_init();
 
-    /* 2. Initialise driver and register wifi_cb() */
+    // nm_bus_init runs inside m2m_wifi_init, but let's test SPI
+    // right after BSP init, which does reset + power-up.
+    // We need SPI configured first, so call nm_bus_init manually:
+    extern sint8 nm_bus_init(void *);
+    nm_bus_init(NULL);
+
+    winc_spi_diag_post_init();  // <-- NEW: test SPI after init
+
+    // Now proceed with normal WINC init
     tstrWifiInitParam initParam;
     memset(&initParam, 0, sizeof(initParam));
     initParam.pfAppWifiCb = wifi_cb;
     if (m2m_wifi_init(&initParam) != M2M_SUCCESS) {
-        printf("WINC init failed\r\n");
+        M2M_ERR("WINC init failed\r\n");
         Error_Handler();
     }
 
-    /* 3. Ask WINC to join the router */
     sint8 ret = m2m_wifi_connect(
             MAIN_WLAN_SSID,
             strlen(MAIN_WLAN_SSID),
             MAIN_WLAN_AUTH,
             (void*)MAIN_WLAN_PSK,
             MAIN_WLAN_CHANNEL);
-    printf("m2m_wifi_connect rc=%d\r\n", ret);
+    M2M_INFO("m2m_wifi_connect rc=%d\r\n", ret);
 
     if (ret != M2M_SUCCESS) {
         printf("m2m_wifi_connect error %d\r\n", ret);
