@@ -179,6 +179,18 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
         status = HAL_SPI_TransmitReceive(&SPI_WIFI_HANDLE,pu8Mosi,pu8Miso,u16Sz,1000);
     } 
     
+
+    // Debug: show first few bytes of TX and RX
+    if (u16Sz <= 16) {
+        printf("SPI[%d] TX:", u16Sz);
+        uint8* tx = (pu8Mosi) ? pu8Mosi : spiDummyBuf;
+        uint8* rx = (pu8Miso) ? pu8Miso : spiDummyBuf;
+        for(int i=0; i<u16Sz; i++) printf(" %02X", tx[i]);
+        printf("  RX:");
+        for(int i=0; i<u16Sz; i++) printf(" %02X", rx[i]);
+        printf("\r\n");
+    }
+
     /* Handle Transmit/Recieve error */
     if (status != HAL_OK)
     {
@@ -245,7 +257,46 @@ void nm_bus_wifi_spi_init(SPI_HandleTypeDef *SPI_WIFI_HANDLE )
     HAL_GPIO_Init(SPI_WIFI_MISO_GPIO_PORT, &GPIO_InitStruct);
 
 }
+sint8 nm_bus_init(void *pvinit)
+{
+    HAL_SPI_DeInit(&SPI_WIFI_HANDLE);
 
+    // Configure SPI pins & CS first
+    nm_bus_wifi_spi_init(NULL);
+
+    // Init SPI peripheral at LOW speed for safe wake
+    SPI_WIFI_HANDLE.Instance               = SPI_WIFI;
+    SPI_WIFI_HANDLE.Init.Mode              = SPI_MODE_MASTER;
+    SPI_WIFI_HANDLE.Init.Direction         = SPI_DIRECTION_2LINES;
+    SPI_WIFI_HANDLE.Init.DataSize          = SPI_DATASIZE_8BIT;
+    SPI_WIFI_HANDLE.Init.CLKPolarity       = SPI_POLARITY_LOW;
+    SPI_WIFI_HANDLE.Init.CLKPhase          = SPI_PHASE_1EDGE;
+    SPI_WIFI_HANDLE.Init.NSS               = SPI_NSS_SOFT;
+    SPI_WIFI_HANDLE.Init.BaudRatePrescaler = CONF_WINC_SPI_LOW_BAUD_PRESCALER;
+    SPI_WIFI_HANDLE.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+    SPI_WIFI_HANDLE.Init.TIMode            = SPI_TIMODE_DISABLE;
+    SPI_WIFI_HANDLE.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+    SPI_WIFI_HANDLE.Init.CRCPolynomial     = 0x7;
+    SPI_WIFI_HANDLE.Init.NSSPMode          = SPI_NSS_PULSE_DISABLE;
+    SPI_WIFI_HANDLE.Init.FifoThreshold     = SPI_FIFO_THRESHOLD_01DATA;
+    SPI_WIFI_HANDLE.Init.MasterSSIdleness           = SPI_MASTER_SS_IDLENESS_00CYCLE;
+    SPI_WIFI_HANDLE.Init.MasterInterDataIdleness    = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
+    SPI_WIFI_HANDLE.Init.MasterReceiverAutoSusp     = SPI_MASTER_RX_AUTOSUSP_DISABLE;
+    SPI_WIFI_HANDLE.Init.MasterKeepIOState           = SPI_MASTER_KEEP_IO_STATE_DISABLE;
+    SPI_WIFI_HANDLE.Init.IOSwap                      = SPI_IO_SWAP_DISABLE;
+    SPI_WIFI_HANDLE.Init.ReadyMasterManagement       = SPI_RDY_MASTER_MANAGEMENT_INTERNALLY;
+    SPI_WIFI_HANDLE.Init.ReadyPolarity               = SPI_RDY_POLARITY_HIGH;
+
+    if (HAL_SPI_Init(&SPI_WIFI_HANDLE) != HAL_OK) {
+        M2M_ERR("SPI bus init error\r\n");
+        return M2M_ERR_BUS_FAIL;
+    }
+
+    M2M_INFO("SPI bus init OK, prescaler=%d\r\n",
+             (int)SPI_WIFI_HANDLE.Init.BaudRatePrescaler);
+
+    return M2M_SUCCESS;
+}
 
 /*
 *	@fn		nm_bus_init
@@ -281,14 +332,7 @@ void nm_bus_wifi_spi_init(SPI_HandleTypeDef *SPI_WIFI_HANDLE )
 //	HAL_SPI_MspInit(&SPI_WIFI_HANDLE);
 //	return result;
 //}
-//temporary fix
-sint8 nm_bus_init(void *pvinit)
-{
-    HAL_SPI_DeInit(&SPI_WIFI_HANDLE); // added
 
-    nm_bus_wifi_spi_init(NULL);        //
-    return M2M_SUCCESS;
-}
 /*
 *	@fn		nm_bus_ioctl
 *	@brief	send/receive from the bus
