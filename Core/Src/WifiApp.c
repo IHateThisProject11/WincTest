@@ -65,113 +65,7 @@ void wifi_cb(uint8_t u8MsgType, void *pvMsg)
 /**
  * @brief Initialize WINC1500 in AP mode.
  */
-//void WifiApp_InitAP(void)
-//{
-//    tstrWifiInitParam param;
-//    tstrM2MAPConfig strM2MAPConfig;
-//    int8_t ret;
-//
-//    nm_bsp_init();
-//    memset(&param, 0, sizeof(param));
-//    param.pfAppWifiCb = wifi_cb;
-//    ret = m2m_wifi_init(&param);
-//    if (M2M_SUCCESS != ret) {
-//        printf("m2m_wifi_init call error!(%d)\r\n", ret);
-//        while (1) {}
-//    }
-//
-//    memset(&strM2MAPConfig, 0, sizeof(strM2MAPConfig));
-//    strcpy((char *)&strM2MAPConfig.au8SSID, MAIN_WLAN_SSID);
-//    strM2MAPConfig.u8ListenChannel = MAIN_WLAN_CHANNEL;
-//    strM2MAPConfig.u8SecType     = MAIN_WLAN_AUTH;
-//#if USE_WEP
-//    strcpy((char *)&strM2MAPConfig.au8WepKey, MAIN_WLAN_WEP_KEY);
-//    strM2MAPConfig.u8KeySz    = strlen(MAIN_WLAN_WEP_KEY);
-//    strM2MAPConfig.u8KeyIndx  = MAIN_WLAN_WEP_KEY_INDEX;
-//#endif
-//    strM2MAPConfig.au8DHCPServerIP[0] = 192;
-//    strM2MAPConfig.au8DHCPServerIP[1] = 168;
-//    strM2MAPConfig.au8DHCPServerIP[2] = 1;
-//    strM2MAPConfig.au8DHCPServerIP[3] = 1;
-//
-//    ret = m2m_wifi_enable_ap(&strM2MAPConfig);
-//    if (M2M_SUCCESS != ret) {
-//        printf("m2m_wifi_enable_ap call error!\r\n");
-//        while (1) {}
-//    }
-//
-//    printf("AP mode started. You can connect to %s.\r\n", MAIN_WLAN_SSID);
-//}
-//static void winc_hardware_diag(void)
-//{
-//    M2M_INFO("\r\n=== WINC HARDWARE DIAGNOSTIC ===\r\n");
-//
-//    M2M_INFO("BEFORE power-up:\r\n");
-//    M2M_INFO("  CHIP_EN (PB1) = %d\r\n",
-//           HAL_GPIO_ReadPin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin));
-//    M2M_INFO("  RESET   (PB0) = %d\r\n",
-//           HAL_GPIO_ReadPin(RESET_WINC_GPIO_Port, RESET_WINC_Pin));
-//    M2M_INFO("  CS      (PC5) = %d\r\n",
-//           HAL_GPIO_ReadPin(CS_WINC_GPIO_Port, CS_WINC_Pin));
-//    M2M_INFO("  IRQ     (PC4) = %d\r\n",
-//           HAL_GPIO_ReadPin(IRQ_WINC_PIN_GPIO_Port, IRQ_WINC_PIN_Pin));
-//    M2M_INFO("  MISO    (PA6) = %d\r\n",
-//           HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6));
-//
-//    M2M_INFO("Powering WINC: CHIP_EN=0, RESET=0\r\n");
-//    HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_RESET);
-//    HAL_GPIO_WritePin(RESET_WINC_GPIO_Port, RESET_WINC_Pin, GPIO_PIN_RESET);
-//    HAL_Delay(100);
-//    M2M_INFO("Setting CHIP_EN=1\r\n");
-//    HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_SET);
-//    HAL_Delay(100);
-//    M2M_INFO("Setting RESET=1\r\n");
-//    HAL_GPIO_WritePin(RESET_WINC_GPIO_Port, RESET_WINC_Pin, GPIO_PIN_SET);
-//    HAL_Delay(500);
-//
-//    M2M_INFO("AFTER power-up:\r\n");
-//    M2M_INFO("  IRQ     (PC4) = %d\r\n",
-//           HAL_GPIO_ReadPin(IRQ_WINC_PIN_GPIO_Port, IRQ_WINC_PIN_Pin));
-//    M2M_INFO("  MISO    (PA6) = %d\r\n",
-//           HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6));
-//    M2M_INFO("=== END PRE-INIT DIAGNOSTIC ===\r\n\r\n");
-//}
-//
-//static void winc_spi_diag_post_init(void)
-//{
-//    extern SPI_HandleTypeDef hspi1;
-//
-//    M2M_INFO("\r\n=== POST-INIT SPI DIAGNOSTIC ===\r\n");
-//
-//    // Test 1: CS HIGH (WINC deselected). MISO floats with pull-up.
-//    // Should read FF FF FF FF.
-//    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);
-//    HAL_Delay(1);
-//    uint8_t tx1[4] = {0xAA, 0x55, 0xAA, 0x55};
-//    uint8_t rx1[4] = {0xDE, 0xDE, 0xDE, 0xDE};
-//    HAL_StatusTypeDef st = HAL_SPI_TransmitReceive(&hspi1, tx1, rx1, 4, 100);
-//    M2M_INFO("CS=HIGH: status=%d RX: %02X %02X %02X %02X (expect FF)\r\n",
-//           st, rx1[0], rx1[1], rx1[2], rx1[3]);
-//
-//    // Test 2: CS LOW (WINC selected). Send CMD_SINGLE_READ for chip ID.
-//    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_RESET);
-//    HAL_Delay(1);
-//    uint8_t tx2[8] = {0xCA, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00};
-//    uint8_t rx2[8] = {0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE};
-//    st = HAL_SPI_TransmitReceive(&hspi1, tx2, rx2, 8, 100);
-//    M2M_INFO("CS=LOW:  status=%d RX: %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
-//           st, rx2[0], rx2[1], rx2[2], rx2[3],
-//           rx2[4], rx2[5], rx2[6], rx2[7]);
-//    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);
-//
-//    // Test 3: Read SPI registers directly to verify config
-//    M2M_INFO("SPI1->CR1  = 0x%08lX\r\n", SPI1->CR1);
-//    M2M_INFO("SPI1->CFG1 = 0x%08lX\r\n", SPI1->CFG1);
-//    M2M_INFO("SPI1->CFG2 = 0x%08lX\r\n", SPI1->CFG2);
-//    M2M_INFO("SPI1->SR   = 0x%08lX\r\n", SPI1->SR);
-//
-//    M2M_INFO("=== END POST-INIT DIAGNOSTIC ===\r\n\r\n");
-//}
+
 
 
 void WifiApp_InitAP(void)
@@ -200,6 +94,120 @@ void WifiApp_InitAP(void)
         M2M_INFO("Connecting to %s\r\n", MAIN_WLAN_SSID);
     }
 }
+
+
+//static void raw_winc_test(void)
+//{
+//    extern SPI_HandleTypeDef hspi1;
+//    HAL_StatusTypeDef st;
+//    uint8_t tx[16], rx[16];
+//
+//    M2M_INFO("\r\n========= RAW WINC SPI TEST =========\r\n");
+//
+//    /* 1. Full power cycle */
+//    M2M_INFO("Step 1: Power cycle WINC\r\n");
+//    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);
+//    HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_RESET);
+//    HAL_GPIO_WritePin(RESET_WINC_GPIO_Port, RESET_WINC_Pin, GPIO_PIN_RESET);
+//    HAL_Delay(500);
+//    HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_SET);
+//    HAL_Delay(200);
+//    HAL_GPIO_WritePin(RESET_WINC_GPIO_Port, RESET_WINC_Pin, GPIO_PIN_SET);
+//    M2M_INFO("  Waiting 2s for boot...\r\n");
+//    HAL_Delay(2000);
+//    M2M_INFO("  IRQ=%d  MISO=%d\r\n",
+//        HAL_GPIO_ReadPin(IRQ_WINC_PIN_GPIO_Port, IRQ_WINC_PIN_Pin),
+//        HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6));
+//
+//    /* 2. Fresh SPI init for EACH test (avoids poisoned state) */
+//    /* Helper macro to do clean init */
+//    #define REINIT_SPI(swap, cpol, cpha) do { \
+//        HAL_SPI_DeInit(&hspi1); \
+//        hspi1.Instance               = SPI1; \
+//        hspi1.Init.Mode              = SPI_MODE_MASTER; \
+//        hspi1.Init.Direction         = SPI_DIRECTION_2LINES; \
+//        hspi1.Init.DataSize          = SPI_DATASIZE_8BIT; \
+//        hspi1.Init.CLKPolarity       = (cpol); \
+//        hspi1.Init.CLKPhase          = (cpha); \
+//        hspi1.Init.NSS               = SPI_NSS_SOFT; \
+//        hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128; \
+//        hspi1.Init.FirstBit          = SPI_FIRSTBIT_MSB; \
+//        hspi1.Init.TIMode            = SPI_TIMODE_DISABLE; \
+//        hspi1.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE; \
+//        hspi1.Init.CRCPolynomial     = 0x7; \
+//        hspi1.Init.NSSPMode          = SPI_NSS_PULSE_DISABLE; \
+//        hspi1.Init.NSSPolarity       = SPI_NSS_POLARITY_LOW; \
+//        hspi1.Init.FifoThreshold     = SPI_FIFO_THRESHOLD_01DATA; \
+//        hspi1.Init.MasterSSIdleness          = SPI_MASTER_SS_IDLENESS_00CYCLE; \
+//        hspi1.Init.MasterInterDataIdleness   = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE; \
+//        hspi1.Init.MasterReceiverAutoSusp    = SPI_MASTER_RX_AUTOSUSP_DISABLE; \
+//        hspi1.Init.MasterKeepIOState         = SPI_MASTER_KEEP_IO_STATE_DISABLE; \
+//        hspi1.Init.IOSwap                    = (swap); \
+//        hspi1.Init.ReadyMasterManagement     = SPI_RDY_MASTER_MANAGEMENT_INTERNALLY; \
+//        hspi1.Init.ReadyPolarity             = SPI_RDY_POLARITY_HIGH; \
+//        HAL_SPI_Init(&hspi1); \
+//    } while(0)
+//
+//    /* ---- Test A: Normal Mode 0, no swap ---- */
+//    M2M_INFO("Test A: Mode 0, normal pins\r\n");
+//    REINIT_SPI(SPI_IO_SWAP_DISABLE, SPI_POLARITY_LOW, SPI_PHASE_1EDGE);
+//
+//    memset(rx, 0xDE, 16);
+//    tx[0]=0xCA; tx[1]=0x00; tx[2]=0x10; tx[3]=0x00; tx[4]=0xCA;
+//    for(int i=5; i<16; i++) tx[i]=0x00;
+//
+//    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_RESET);
+//    HAL_Delay(1);
+//    st = HAL_SPI_TransmitReceive(&hspi1, tx, rx, 16, 500);
+//    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);
+//    M2M_INFO("  st=%d RX: %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+//        (int)st, rx[0],rx[1],rx[2],rx[3],rx[4],rx[5],rx[6],rx[7]);
+//    M2M_INFO("           %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+//        rx[8],rx[9],rx[10],rx[11],rx[12],rx[13],rx[14],rx[15]);
+//    HAL_Delay(50);
+//
+//    /* ---- Test B: IO Swap (MOSI/MISO swapped) ---- */
+//    M2M_INFO("Test B: Mode 0, IO swap\r\n");
+//    REINIT_SPI(SPI_IO_SWAP_ENABLE, SPI_POLARITY_LOW, SPI_PHASE_1EDGE);
+//
+//    memset(rx, 0xDE, 16);
+//    tx[0]=0xCA; tx[1]=0x00; tx[2]=0x10; tx[3]=0x00; tx[4]=0xCA;
+//    for(int i=5; i<16; i++) tx[i]=0x00;
+//
+//    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_RESET);
+//    HAL_Delay(1);
+//    st = HAL_SPI_TransmitReceive(&hspi1, tx, rx, 16, 500);
+//    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);
+//    M2M_INFO("  st=%d RX: %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+//        (int)st, rx[0],rx[1],rx[2],rx[3],rx[4],rx[5],rx[6],rx[7]);
+//    M2M_INFO("           %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+//        rx[8],rx[9],rx[10],rx[11],rx[12],rx[13],rx[14],rx[15]);
+//    HAL_Delay(50);
+//
+//    /* ---- Test C: CS HIGH baseline (no WINC) ---- */
+//    M2M_INFO("Test C: CS HIGH (WINC deselected, expect FF)\r\n");
+//    REINIT_SPI(SPI_IO_SWAP_DISABLE, SPI_POLARITY_LOW, SPI_PHASE_1EDGE);
+//
+//    memset(rx, 0xDE, 4);
+//    memset(tx, 0xAA, 4);
+//    HAL_GPIO_WritePin(CS_WINC_GPIO_Port, CS_WINC_Pin, GPIO_PIN_SET);
+//    st = HAL_SPI_TransmitReceive(&hspi1, tx, rx, 4, 500);
+//    M2M_INFO("  st=%d RX: %02X %02X %02X %02X\r\n",
+//        (int)st, rx[0],rx[1],rx[2],rx[3]);
+//
+//    /* ---- Test D: SPI register dump ---- */
+//    M2M_INFO("Test D: SPI1 registers\r\n");
+//    M2M_INFO("  CR1=0x%08lX  CFG1=0x%08lX\r\n", SPI1->CR1, SPI1->CFG1);
+//    M2M_INFO("  CFG2=0x%08lX  SR=0x%08lX\r\n", SPI1->CFG2, SPI1->SR);
+//
+//    M2M_INFO("========= END TEST =========\r\n");
+//    while(1) { HAL_Delay(1000); }
+//}
+
+//void WifiApp_InitAP(void)
+//{
+//    raw_winc_test();  /* replace normal init with test */
+//}
 
 /**
 // * @brief EXTI line 4 interrupt handler for WINC IRQ.
