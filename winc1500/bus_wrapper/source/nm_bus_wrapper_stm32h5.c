@@ -180,16 +180,6 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
     } 
     
 
-    // Debug: show first few bytes of TX and RX
-    if (u16Sz <= 16) {
-        printf("SPI[%d] TX:", u16Sz);
-        uint8* tx = (pu8Mosi) ? pu8Mosi : spiDummyBuf;
-        uint8* rx = (pu8Miso) ? pu8Miso : spiDummyBuf;
-        for(int i=0; i<u16Sz; i++) printf(" %02X", tx[i]);
-        printf("  RX:");
-        for(int i=0; i<u16Sz; i++) printf(" %02X", rx[i]);
-        printf("\r\n");
-    }
 
     /* Handle Transmit/Recieve error */
     if (status != HAL_OK)

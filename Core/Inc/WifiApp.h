@@ -39,6 +39,8 @@ bool Wifi_HasIP(void);
 #define MAIN_WLAN_CHANNEL M2M_WIFI_CH_ALL            /* scan all channels */
 
 
+void wifi_cb(uint8_t u8MsgType, void *pvMsg);
+
 /* === Public API === */
 /**
  * @brief Initialize the WINC1500 in Access-Point mode.

@@ -807,7 +807,8 @@ sint8 nm_spi_init(void)
 {
 	uint32 chipid;
 	uint32 reg = 0;
-	
+    gu8Crc_off = 1;    // <-- ADD THIS LINE (force CRC off from the start)
+
 
 	/**
 		configure protocol
