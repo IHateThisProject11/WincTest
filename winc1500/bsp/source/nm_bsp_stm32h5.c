@@ -77,7 +77,7 @@ static void init_chip_pins(void)
     HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_SET);
     HAL_Delay(50);
     HAL_GPIO_WritePin(RESET_WINC_GPIO_Port, RESET_WINC_Pin, GPIO_PIN_SET);
-    HAL_Delay(100);
+    HAL_Delay(1000);
 }
 
 /*
@@ -158,7 +158,7 @@ void nm_bsp_reset(void)
                       CONF_WINC_RESET_PIN, GPIO_PIN_SET);
 
     /* Extra guard time before first SPI access */ //changed delay from 2 to 50 to try and winc BOOT ROM
-    HAL_Delay(50);
+    HAL_Delay(500);
 }
 
 
