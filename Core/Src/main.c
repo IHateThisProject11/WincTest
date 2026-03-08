@@ -166,14 +166,7 @@ int main(void)
   /* -- Sample board code to switch on led ---- */
   BSP_LED_On(LED_GREEN);
 
-  /* USER CODE END BSP */
-  nm_bsp_init();
-  tstrWifiInitParam initParam;
-  memset(&initParam, 0, sizeof(initParam));
-  initParam.pfAppWifiCb = wifi_cb;
-  if (m2m_wifi_init(&initParam) != M2M_SUCCESS) {
-      Error_Handler();
-  }
+
   /* Start scheduler */
   osKernelStart();
 

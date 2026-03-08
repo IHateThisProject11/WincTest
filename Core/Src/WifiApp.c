@@ -70,15 +70,15 @@ void wifi_cb(uint8_t u8MsgType, void *pvMsg)
 
 void WifiApp_InitAP(void)
 {
-//    nm_bsp_init();
-//
-//    tstrWifiInitParam initParam;
-//    memset(&initParam, 0, sizeof(initParam));
-//    initParam.pfAppWifiCb = wifi_cb;
-//    if (m2m_wifi_init(&initParam) != M2M_SUCCESS) {
-//        M2M_ERR("WINC init failed\r\n");
-//        Error_Handler();
-//    }
+    nm_bsp_init();
+
+    tstrWifiInitParam initParam;
+    memset(&initParam, 0, sizeof(initParam));
+    initParam.pfAppWifiCb = wifi_cb;
+    if (m2m_wifi_init(&initParam) != M2M_SUCCESS) {
+        M2M_ERR("WINC init failed\r\n");
+        Error_Handler();
+    }
 
     sint8 ret = m2m_wifi_connect(
             MAIN_WLAN_SSID,

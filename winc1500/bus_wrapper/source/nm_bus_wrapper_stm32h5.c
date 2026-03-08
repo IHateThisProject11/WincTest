@@ -161,7 +161,7 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
    HAL_StatusTypeDef status;
    
     /* Start SPI transaction - polling method */
-  	spi_select_slave(true);
+  //	spi_select_slave(true);
     
     
     /* Transmit/Recieve */
@@ -188,7 +188,7 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
         return status;
     }
     
-  	spi_select_slave(false);
+  //	spi_select_slave(false);
 
 	return M2M_SUCCESS;
 }
@@ -340,7 +340,10 @@ sint8 nm_bus_ioctl(uint8 u8Cmd, void* pvParameter)
 	{
 		case NM_BUS_IOCTL_RW: {
 			tstrNmSpiRw *pstrParam = (tstrNmSpiRw *)pvParameter;
+            spi_select_slave(true);                                          // CS LOW  -- added
 			s8Ret = spi_rw(pstrParam->pu8InBuf, pstrParam->pu8OutBuf, pstrParam->u16Sz);
+            spi_select_slave(false);                                         // CS HIGH -- added
+
 		}
 		break;
 		default:
