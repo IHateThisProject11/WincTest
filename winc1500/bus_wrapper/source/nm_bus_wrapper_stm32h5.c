@@ -198,10 +198,19 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
 /**
  * @brief  Expose nm_spi_rw to the WINC1500 driver.
  */
+//sint8 nm_spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
+//{
+//    return spi_rw(pu8Mosi, pu8Miso, u16Sz);
+//}
+
 sint8 nm_spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
 {
-    return spi_rw(pu8Mosi, pu8Miso, u16Sz);
+    spi_select_slave(true);
+    sint8 ret = spi_rw(pu8Mosi, pu8Miso, u16Sz);
+    spi_select_slave(false);
+    return ret;
 }
+
 
 
 void nm_bus_wifi_spi_init(SPI_HandleTypeDef *SPI_WIFI_HANDLE )
@@ -340,9 +349,7 @@ sint8 nm_bus_ioctl(uint8 u8Cmd, void* pvParameter)
 	{
 		case NM_BUS_IOCTL_RW: {
 			tstrNmSpiRw *pstrParam = (tstrNmSpiRw *)pvParameter;
-            spi_select_slave(true);                                          // CS LOW  -- added
 			s8Ret = spi_rw(pstrParam->pu8InBuf, pstrParam->pu8OutBuf, pstrParam->u16Sz);
-            spi_select_slave(false);                                         // CS HIGH -- added
 
 		}
 		break;
