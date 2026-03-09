@@ -171,7 +171,7 @@ void nm_bsp_reset(void)
 void nm_bsp_sleep(uint32 u32TimeMsec)
 {
     /* use FreeRTOS delay */
-    HAL_Delay(u32TimeMsec);
+	osDelay(u32TimeMsec);
 }
 
 /*

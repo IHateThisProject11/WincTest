@@ -368,6 +368,7 @@ static void MX_SPI1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN SPI1_Init 2 */
+  HAL_SPI_DeInit(&hspi1);                            // ← ADD THIS
   hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
   hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_ENABLE;
   if (HAL_SPI_Init(&hspi1) != HAL_OK) Error_Handler();
