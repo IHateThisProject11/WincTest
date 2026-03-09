@@ -85,6 +85,9 @@
 #define DATA_PKT_SZ_8K			(8 * 1024)
 #define DATA_PKT_SZ				DATA_PKT_SZ_8K
 
+extern void nm_spi_cs_assert(void);    // defined in nm_bus_wrapper_stm32h5.c
+extern void nm_spi_cs_deassert(void);  // defined in nm_bus_wrapper_stm32h5.c
+
 static uint8 	gu8Crc_off	=   0;
 
 static inline sint8 nmi_spi_read(uint8 *b, uint16 sz)
@@ -517,7 +520,7 @@ static sint8 spi_data_write(uint8 *b, uint16 sz)
 ********************************************/
 
 /**
- *  @fn         nm_spi_write_reg
+ *  @fn        nm_spi_read_reg_with_ret_reg
  *  @brief      Write register
  *  @param[in]  u32Addr
  *                  Register address
@@ -533,6 +536,9 @@ sint8 nm_spi_write_reg(uint32 addr, uint32 u32data)
 	uint8 clockless = 0;
 	
 _RETRY_:	
+
+	nm_spi_cs_assert();                          // CS LOW for full transaction
+
 	if (addr <= 0x30)
 	{
 		/**
@@ -543,6 +549,8 @@ _RETRY_:
 	}
 
 	result = spi_cmd(cmd, addr, u32data, 4, clockless);
+    nm_spi_cs_deassert();                        // CS HIGH after data received
+
 	if (result != N_OK) {
 		M2M_ERR("[nmi spi]: Failed cmd, write reg (%08x)...\n", (unsigned int)addr);
 		goto _FAIL_;
@@ -647,6 +655,8 @@ sint8 nm_spi_read_reg_with_ret(uint32 addr, uint32 *u32data)
 
 _RETRY_:
 
+	nm_spi_cs_assert();                          // CS LOW for full transaction
+
 	if (addr <= 0xff)
 	{
 		/**
@@ -659,6 +669,9 @@ _RETRY_:
 	result = spi_cmd(cmd, addr, 0, 4, clockless);
 	M2M_DBG("[DBG cmd] spi_cmd(cmd=0x%02x, addr=0x%08lx) → %d\n",
 	            cmd, (unsigned long)addr, result);
+
+    nm_spi_cs_deassert();                        // CS HIGH after data received
+
 	if (result != N_OK) {
 		M2M_ERR("[nmi spi]: Failed cmd, read reg (%08x)...\n", (unsigned int)addr);
 		goto _FAIL_;
@@ -709,6 +722,8 @@ static sint8 nm_spi_read(uint32 addr, uint8 *buf, uint16 size)
 
 _RETRY_:
 
+	nm_spi_cs_assert();                          // CS LOW for full transaction
+
 	/**
 		Command
 	**/
@@ -740,6 +755,9 @@ _RETRY_:
 	}
 	else
 		result = spi_data_read(buf, size,0);
+
+    nm_spi_cs_deassert();                        // CS HIGH after data received
+
 
 	if (result != N_OK) {
 		M2M_ERR("[nmi spi]: Failed block data read...\n");

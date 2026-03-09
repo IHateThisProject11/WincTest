@@ -64,6 +64,9 @@ extern SPI_HandleTypeDef SPI_WIFI_HANDLE;
 /* spi_rw variables */
 static uint8 spiDummyBuf[300] = {0};
 
+void nm_spi_cs_assert(void)   { spi_select_slave(true);  }
+void nm_spi_cs_deassert(void) { spi_select_slave(false); }
+
 tstrNmBusCapabilities egstrNmBusCapabilities =
 {
 	NM_BUS_MAX_TRX_SZ
@@ -198,18 +201,12 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
 /**
  * @brief  Expose nm_spi_rw to the WINC1500 driver.
  */
-//sint8 nm_spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
-//{
-//    return spi_rw(pu8Mosi, pu8Miso, u16Sz);
-//}
-
 sint8 nm_spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
 {
-    spi_select_slave(true);
-    sint8 ret = spi_rw(pu8Mosi, pu8Miso, u16Sz);
-    spi_select_slave(false);
-    return ret;
+    return spi_rw(pu8Mosi, pu8Miso, u16Sz);
 }
+
+
 
 
 
