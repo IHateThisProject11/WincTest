@@ -64,6 +64,7 @@ extern SPI_HandleTypeDef SPI_WIFI_HANDLE;
 /* spi_rw variables */
 static uint8 spiDummyBuf[300] = {0};
 
+static void spi_select_slave(const uint8_t select);  // forward declaration
 void nm_spi_cs_assert(void)   { spi_select_slave(true);  }
 void nm_spi_cs_deassert(void) { spi_select_slave(false); }
 

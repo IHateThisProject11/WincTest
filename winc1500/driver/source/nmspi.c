@@ -88,6 +88,7 @@
 extern void nm_spi_cs_assert(void);    // defined in nm_bus_wrapper_stm32h5.c
 extern void nm_spi_cs_deassert(void);  // defined in nm_bus_wrapper_stm32h5.c
 
+
 static uint8 	gu8Crc_off	=   0;
 
 static inline sint8 nmi_spi_read(uint8 *b, uint16 sz)
@@ -530,110 +531,103 @@ static sint8 spi_data_write(uint8 *b, uint16 sz)
  */
 sint8 nm_spi_write_reg(uint32 addr, uint32 u32data)
 {
-	uint8 retry = SPI_RETRY_COUNT;
-	sint8 result = N_OK;
-	uint8 cmd = CMD_SINGLE_WRITE;
-	uint8 clockless = 0;
-	
-_RETRY_:	
+    uint8 retry = SPI_RETRY_COUNT;
+    sint8 result = N_OK;
+    uint8 cmd = CMD_SINGLE_WRITE;
+    uint8 clockless = 0;
 
-	nm_spi_cs_assert();                          // CS LOW for full transaction
+_RETRY_:
+    nm_spi_cs_assert();
 
-	if (addr <= 0x30)
-	{
-		/**
-		NMC1000 clockless registers.
-		**/
-		cmd = CMD_INTERNAL_WRITE;
-		clockless = 1;
-	}
+    if (addr <= 0x30) {
+        cmd = CMD_INTERNAL_WRITE;
+        clockless = 1;
+    }
 
-	result = spi_cmd(cmd, addr, u32data, 4, clockless);
-    nm_spi_cs_deassert();                        // CS HIGH after data received
+    result = spi_cmd(cmd, addr, u32data, 4, clockless);
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed cmd, write reg (%08x)...\n", (unsigned int)addr);
+        nm_spi_cs_deassert();
+        goto _FAIL_;
+    }
 
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed cmd, write reg (%08x)...\n", (unsigned int)addr);
-		goto _FAIL_;
-	}
+    result = spi_cmd_rsp(cmd);
+    nm_spi_cs_deassert();
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed cmd response, write reg (%08x)...\n", (unsigned int)addr);
+        goto _FAIL_;
+    }
 
-	result = spi_cmd_rsp(cmd);
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed cmd response, write reg (%08x)...\n", (unsigned int)addr);
-		goto _FAIL_;
-	}
 _FAIL_:
-	if(result != N_OK)
-	{
-		nm_bsp_sleep(1);
-		spi_cmd(CMD_RESET, 0, 0, 0, 0);
-		spi_cmd_rsp(CMD_RESET);
-		M2M_ERR("Reset and retry %d %x %x\n",retry,addr,u32data);
-		nm_bsp_sleep(1);
-		retry--;
-		if(retry) goto _RETRY_;
-	}
+    if (result != N_OK) {
+        nm_bsp_sleep(1);
+        nm_spi_cs_assert();
+        spi_cmd(CMD_RESET, 0, 0, 0, 0);
+        spi_cmd_rsp(CMD_RESET);
+        nm_spi_cs_deassert();
+        M2M_ERR("Reset and retry %d %x %x\n", retry, addr, u32data);
+        nm_bsp_sleep(1);
+        retry--;
+        if (retry) goto _RETRY_;
+    }
 
-	return result;
+    return result;
 }
 
 static sint8 nm_spi_write(uint32 addr, uint8 *buf, uint16 size)
 {
-	sint8 result;
-	uint8 retry = SPI_RETRY_COUNT;
-	uint8 cmd = CMD_DMA_EXT_WRITE;
-
+    sint8 result;
+    uint8 retry = SPI_RETRY_COUNT;
+    uint8 cmd = CMD_DMA_EXT_WRITE;
 
 _RETRY_:
-	/**
-		Command
-	**/
-	//Workaround hardware problem with single byte transfers over SPI bus
-	if (size == 1)
-		size = 2;
+    nm_spi_cs_assert();
 
-	result = spi_cmd(cmd, addr, 0, size,0);
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed cmd, write block (%08x)...\n", (unsigned int)addr);
-		goto _FAIL_;
-	}
+    if (size == 1)
+        size = 2;
 
-	result = spi_cmd_rsp(cmd);
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi ]: Failed cmd response, write block (%08x)...\n", (unsigned int)addr);
-		goto _FAIL_;
-	}
+    result = spi_cmd(cmd, addr, 0, size, 0);
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed cmd, write block (%08x)...\n", (unsigned int)addr);
+        nm_spi_cs_deassert();
+        goto _FAIL_;
+    }
 
-	/**
-		Data
-	**/
-	result = spi_data_write(buf, size);
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed block data write...\n");
-		goto _FAIL_;
-	}
-	/**
-		Data RESP
-	**/
-	result = spi_data_rsp(cmd);
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed block data write...\n");
-		goto _FAIL_;
-	}
-	
+    result = spi_cmd_rsp(cmd);
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi ]: Failed cmd response, write block (%08x)...\n", (unsigned int)addr);
+        nm_spi_cs_deassert();
+        goto _FAIL_;
+    }
+
+    result = spi_data_write(buf, size);
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed block data write...\n");
+        nm_spi_cs_deassert();
+        goto _FAIL_;
+    }
+
+    result = spi_data_rsp(cmd);
+    nm_spi_cs_deassert();
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed block data write...\n");
+        goto _FAIL_;
+    }
+
 _FAIL_:
-	if(result != N_OK)
-	{
-		nm_bsp_sleep(1);
-		spi_cmd(CMD_RESET, 0, 0, 0, 0);
-		spi_cmd_rsp(CMD_RESET);
-		M2M_ERR("Reset and retry %d %x %d\n",retry,addr,size);
-		nm_bsp_sleep(1);
-		retry--;
-		if(retry) goto _RETRY_;
-	}
+    if (result != N_OK) {
+        nm_bsp_sleep(1);
+        nm_spi_cs_assert();
+        spi_cmd(CMD_RESET, 0, 0, 0, 0);
+        spi_cmd_rsp(CMD_RESET);
+        nm_spi_cs_deassert();
+        M2M_ERR("Reset and retry %d %x %d\n", retry, addr, size);
+        nm_bsp_sleep(1);
+        retry--;
+        if (retry) goto _RETRY_;
+    }
 
-
-	return result;
+    return result;
 }
 
 /**
@@ -647,136 +641,122 @@ _FAIL_:
  */
 sint8 nm_spi_read_reg_with_ret(uint32 addr, uint32 *u32data)
 {
-	uint8 retry = SPI_RETRY_COUNT;
-	volatile sint8 result = N_OK;
-	uint8 cmd = CMD_SINGLE_READ;
-	uint8 tmp[4];
-	uint8 clockless = 0;
+    uint8 retry = SPI_RETRY_COUNT;
+    volatile sint8 result = N_OK;
+    uint8 cmd = CMD_SINGLE_READ;
+    uint8 tmp[4];
+    uint8 clockless = 0;
 
 _RETRY_:
+    nm_spi_cs_assert();
 
-	nm_spi_cs_assert();                          // CS LOW for full transaction
+    if (addr <= 0xff) {
+        cmd = CMD_INTERNAL_READ;
+        clockless = 1;
+    }
 
-	if (addr <= 0xff)
-	{
-		/**
-		NMC1000 clockless registers.
-		**/
-		cmd = CMD_INTERNAL_READ;
-		clockless = 1;
-	}
+    result = spi_cmd(cmd, addr, 0, 4, clockless);
+    M2M_DBG("[DBG cmd] spi_cmd(cmd=0x%02x, addr=0x%08lx) → %d\n",
+                cmd, (unsigned long)addr, result);
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed cmd, read reg (%08x)...\n", (unsigned int)addr);
+        nm_spi_cs_deassert();
+        goto _FAIL_;
+    }
 
-	result = spi_cmd(cmd, addr, 0, 4, clockless);
-	M2M_DBG("[DBG cmd] spi_cmd(cmd=0x%02x, addr=0x%08lx) → %d\n",
-	            cmd, (unsigned long)addr, result);
+    result = spi_cmd_rsp(cmd);
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed cmd response, read reg (%08x)...\n", (unsigned int)addr);
+        nm_spi_cs_deassert();
+        goto _FAIL_;
+    }
 
-    nm_spi_cs_deassert();                        // CS HIGH after data received
+    result = spi_data_read(&tmp[0], 4, clockless);
+    M2M_DBG("[DBG data] spi_data_read → %d, buf = %02x %02x %02x %02x\n",
+                result, tmp[0], tmp[1], tmp[2], tmp[3]);
+    nm_spi_cs_deassert();
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed data read...\n");
+        goto _FAIL_;
+    }
 
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed cmd, read reg (%08x)...\n", (unsigned int)addr);
-		goto _FAIL_;
-	}
+    *u32data = tmp[0] |
+        ((uint32)tmp[1] << 8) |
+        ((uint32)tmp[2] << 16) |
+        ((uint32)tmp[3] << 24);
 
-	result = spi_cmd_rsp(cmd);
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed cmd response, read reg (%08x)...\n", (unsigned int)addr);
-		goto _FAIL_;
-	}
-
-	/* to avoid endianness issues */
-	result = spi_data_read(&tmp[0], 4, clockless);
-	M2M_DBG("[DBG data] spi_data_read → %d, buf = %02x %02x %02x %02x\n",
-	            result, tmp[0], tmp[1], tmp[2], tmp[3]);
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed data read...\n");
-		goto _FAIL_;
-	}
-
-	*u32data = tmp[0] |
-		((uint32)tmp[1] << 8) |
-		((uint32)tmp[2] << 16) |
-		((uint32)tmp[3] << 24);
-		
 _FAIL_:
-	if(result != N_OK)
-	{
-		nm_bsp_sleep(1);
-		spi_cmd(CMD_RESET, 0, 0, 0, 0);
-		spi_cmd_rsp(CMD_RESET);
-		M2M_ERR("Reset and retry %d %lx\n",retry,addr);
-		nm_bsp_sleep(1);
-		retry--;
-		if(retry) goto _RETRY_;
-	}
-		
-	return result;
+    if (result != N_OK) {
+        nm_bsp_sleep(1);
+        nm_spi_cs_assert();
+        spi_cmd(CMD_RESET, 0, 0, 0, 0);
+        spi_cmd_rsp(CMD_RESET);
+        nm_spi_cs_deassert();
+        M2M_ERR("Reset and retry %d %lx\n", retry, addr);
+        nm_bsp_sleep(1);
+        retry--;
+        if (retry) goto _RETRY_;
+    }
+
+    return result;
 }
 
 static sint8 nm_spi_read(uint32 addr, uint8 *buf, uint16 size)
 {
-	uint8 cmd = CMD_DMA_EXT_READ;
-	sint8 result;
-	uint8 retry = SPI_RETRY_COUNT;
-	uint8 tmp[2];
-	uint8 single_byte_workaround = 0;
+    uint8 cmd = CMD_DMA_EXT_READ;
+    sint8 result;
+    uint8 retry = SPI_RETRY_COUNT;
+    uint8 tmp[2];
+    uint8 single_byte_workaround = 0;
 
 _RETRY_:
+    nm_spi_cs_assert();
 
-	nm_spi_cs_assert();                          // CS LOW for full transaction
+    if (size == 1) {
+        size = 2;
+        single_byte_workaround = 1;
+    }
 
-	/**
-		Command
-	**/
-	if (size == 1)
-	{
-		//Workaround hardware problem with single byte transfers over SPI bus
-		size = 2;
-		single_byte_workaround = 1;
-	}
-	result = spi_cmd(cmd, addr, 0, size,0);
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed cmd, read block (%08x)...\n", (unsigned int)addr);
-		goto _FAIL_;
-	}
+    result = spi_cmd(cmd, addr, 0, size, 0);
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed cmd, read block (%08x)...\n", (unsigned int)addr);
+        nm_spi_cs_deassert();
+        goto _FAIL_;
+    }
 
-	result = spi_cmd_rsp(cmd);
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed cmd response, read block (%08x)...\n", (unsigned int)addr);
-		goto _FAIL_;
-	}
+    result = spi_cmd_rsp(cmd);
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed cmd response, read block (%08x)...\n", (unsigned int)addr);
+        nm_spi_cs_deassert();
+        goto _FAIL_;
+    }
 
-	/**
-		Data
-	**/
-	if (single_byte_workaround)
-	{
-		result = spi_data_read(tmp, size,0);
-		buf[0] = tmp[0];
-	}
-	else
-		result = spi_data_read(buf, size,0);
-
-    nm_spi_cs_deassert();                        // CS HIGH after data received
-
-
-	if (result != N_OK) {
-		M2M_ERR("[nmi spi]: Failed block data read...\n");
-		goto _FAIL_;
-	}
+    if (single_byte_workaround) {
+        result = spi_data_read(tmp, size, 0);
+        buf[0] = tmp[0];
+    } else {
+        result = spi_data_read(buf, size, 0);
+    }
+    nm_spi_cs_deassert();
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed block data read...\n");
+        goto _FAIL_;
+    }
 
 _FAIL_:
-	if(result != N_OK)
-	{
-		nm_bsp_sleep(1);
-		spi_cmd(CMD_RESET, 0, 0, 0, 0);
-		spi_cmd_rsp(CMD_RESET);
-		M2M_ERR("Reset and retry %d %lx %d\n",retry,addr,size);
-		nm_bsp_sleep(1);
-		retry--;
-		if(retry) goto _RETRY_;
-	}
+    if (result != N_OK) {
+        nm_bsp_sleep(1);
+        nm_spi_cs_assert();
+        spi_cmd(CMD_RESET, 0, 0, 0, 0);
+        spi_cmd_rsp(CMD_RESET);
+        nm_spi_cs_deassert();
+        M2M_ERR("Reset and retry %d %lx %d\n", retry, addr, size);
+        nm_bsp_sleep(1);
+        retry--;
+        if (retry) goto _RETRY_;
+    }
 
-	return result;
+    return result;
 }
 
 /********************************************
