@@ -359,7 +359,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
   hspi1.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
   hspi1.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
-  hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
+  hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_ENABLE;
   hspi1.Init.IOSwap = SPI_IO_SWAP_DISABLE;
   hspi1.Init.ReadyMasterManagement = SPI_RDY_MASTER_MANAGEMENT_INTERNALLY;
   hspi1.Init.ReadyPolarity = SPI_RDY_POLARITY_HIGH;
@@ -369,7 +369,8 @@ static void MX_SPI1_Init(void)
   }
   /* USER CODE BEGIN SPI1_Init 2 */
   hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
-
+  hspi1.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_ENABLE;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK) Error_Handler();
   /* USER CODE END SPI1_Init 2 */
 
 }
