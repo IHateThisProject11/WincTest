@@ -261,8 +261,8 @@ static sint8 spi_cmd(uint8 cmd, uint32 adr, uint32 u32data, uint32 sz,uint8 cloc
 
 
         // *** DEBUG ***
-        M2M_ERR("[DBG spi_cmd] crc_off=%d len=%d bytes: %02X %02X %02X %02X %02X\r\n",
-            gu8Crc_off, len, bc[0], bc[1], bc[2], bc[3], (len>4?bc[4]:0x00));
+//        M2M_ERR("[DBG spi_cmd] crc_off=%d len=%d bytes: %02X %02X %02X %02X %02X\r\n",
+//            gu8Crc_off, len, bc[0], bc[1], bc[2], bc[3], (len>4?bc[4]:0x00));
 
 		if (M2M_SUCCESS != nmi_spi_write(bc, len)) {
 			M2M_ERR("[nmi spi]: Failed cmd write, bus error...\n");
@@ -339,7 +339,7 @@ static sint8 spi_cmd_rsp(uint8 cmd)
 			result = N_FAIL;
 			goto _fail_;
 		}
-        M2M_ERR("[DBG cmd_rsp] echo=0x%02X (expected=0x%02X)\r\n", rsp, cmd);
+       // M2M_ERR("[DBG cmd_rsp] echo=0x%02X (expected=0x%02X)\r\n", rsp, cmd);
 
 	} while((rsp != cmd) && (s8RetryCnt-- >0));
 
@@ -409,7 +409,7 @@ static sint8 spi_data_read(uint8 *b, uint16 sz,uint8 clockless)
 				result = N_FAIL;
 				break;
 			}
-            M2M_ERR("[DBG hdr] rsp=0x%02X retry=%d\r\n", rsp, (int)retry);
+         //   M2M_ERR("[DBG hdr] rsp=0x%02X retry=%d\r\n", rsp, (int)retry);
 
             if((rsp & 0xf0) == 0xf0)
 				break;

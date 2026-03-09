@@ -32,7 +32,7 @@ void wifi_cb(uint8_t u8MsgType, void *pvMsg)
         if (pstrWifiState->u8CurrState == M2M_WIFI_CONNECTED) {
             // Station connected
         } else if (pstrWifiState->u8CurrState == M2M_WIFI_DISCONNECTED) {
-            printf("Station disconnected\r\n");
+            printf("Station disconnected, reason=%d\r\n", pstrWifiState->u8ErrCode);
             s_wifi_has_ip = false;
         }
         break;
@@ -111,22 +111,21 @@ void WifiApp_InitAP(void)
         Error_Handler();
     }
 
-//    sint8 ret = m2m_wifi_connect(
-//            MAIN_WLAN_SSID,
-//            strlen(MAIN_WLAN_SSID),
-//            MAIN_WLAN_AUTH,
-//            (void*)MAIN_WLAN_PSK,
-//            MAIN_WLAN_CHANNEL);
-//    M2M_INFO("m2m_wifi_connect rc=%d\r\n", ret);
-//
-//    if (ret != M2M_SUCCESS) {
-//        M2M_ERR("m2m_wifi_connect error %d\r\n", ret);
-//    } else {
-//        M2M_INFO("Connecting to %s\r\n", MAIN_WLAN_SSID);
-//    }
+    sint8 ret = m2m_wifi_connect(
+            MAIN_WLAN_SSID,
+            strlen(MAIN_WLAN_SSID),
+            MAIN_WLAN_AUTH,
+            (void*)MAIN_WLAN_PSK,
+            MAIN_WLAN_CHANNEL);
+    M2M_INFO("m2m_wifi_connect rc=%d\r\n", ret);
 
-    M2M_INFO("Starting WiFi scan...\r\n");
-    m2m_wifi_request_scan(M2M_WIFI_CH_ALL);
+    if (ret != M2M_SUCCESS) {
+        M2M_ERR("m2m_wifi_connect error %d\r\n", ret);
+    } else {
+        M2M_INFO("Connecting to %s\r\n", MAIN_WLAN_SSID);
+    }
+
+
 }
 
 

@@ -166,6 +166,7 @@ int main(void)
   /* -- Sample board code to switch on led ---- */
   BSP_LED_On(LED_GREEN);
 
+  // TEMPORARY TEST - bare metal scan before RTOS starts
 
   /* Start scheduler */
   osKernelStart();

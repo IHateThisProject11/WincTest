@@ -35,7 +35,7 @@ bool Wifi_HasIP(void);
 #define USE_WEP              0                /* leave at 0 for WPA2-PSK */
 #define MAIN_WLAN_SSID    "test"        /* e.g. your home router or PC hotspot name */
 #define MAIN_WLAN_AUTH    M2M_WIFI_SEC_WPA_PSK       /* WPA2-PSK; use M2M_WIFI_SEC_OPEN if no passphrase */
-#define MAIN_WLAN_PSK     "test123123"    /* your Wi-Fi password (8–63 chars) */
+#define MAIN_WLAN_PSK     "12345678"    /* your Wi-Fi password (8–63 chars) */
 #define MAIN_WLAN_CHANNEL M2M_WIFI_CH_ALL            /* scan all channels */
 
 
