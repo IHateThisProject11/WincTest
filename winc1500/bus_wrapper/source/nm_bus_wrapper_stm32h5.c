@@ -292,11 +292,7 @@ sint8 nm_bus_init(void *pvinit)
     M2M_INFO("SPI bus init OK, prescaler=%d\r\n",
              (int)SPI_WIFI_HANDLE.Init.BaudRatePrescaler);
 
-    // In nm_bus_init(), immediately after HAL_SPI_Init():
-    if (HAL_SPI_Init(&SPI_WIFI_HANDLE) != HAL_OK) {
-        M2M_ERR("SPI bus init error\r\n");
-        return M2M_ERR_BUS_FAIL;
-    }
+
 
 
     // *** DEBUG: print raw register values and verify FIFO is empty ***
@@ -312,8 +308,9 @@ sint8 nm_bus_init(void *pvinit)
     M2M_ERR("[DBG nm_bus_init] RESET pin state = %d\r\n",
         (int)HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0));
 
-    // Drain any stale bytes from the FIFO
-    while (__HAL_SPI_GET_FLAG(&SPI_WIFI_HANDLE, SPI_FLAG_RXWNE)) {
+    // Drain any stale bytes - check both RXWNE (>=4 bytes) and RXPLVL (1-3 bytes)
+    while (__HAL_SPI_GET_FLAG(&SPI_WIFI_HANDLE, SPI_FLAG_RXWNE) ||
+           (SPI_WIFI_HANDLE.Instance->SR & SPI_SR_RXPLVL)) {
         volatile uint32_t dummy = SPI_WIFI_HANDLE.Instance->RXDR;
         (void)dummy;
     }

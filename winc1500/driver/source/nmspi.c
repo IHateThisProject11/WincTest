@@ -681,13 +681,6 @@ _RETRY_:
         goto _FAIL_;
     }
 
-    result = spi_cmd_rsp(cmd);
-    if (result != N_OK) {
-        M2M_ERR("[nmi spi]: Failed cmd response, read reg (%08x)...\n", (unsigned int)addr);
-        nm_spi_cs_deassert();
-        goto _FAIL_;
-    }
-
     {
         uint8 raw2[16] = {0};
         nmi_spi_read(raw2, 16);
@@ -695,6 +688,14 @@ _RETRY_:
             raw2[0],raw2[1],raw2[2],raw2[3],raw2[4],raw2[5],raw2[6],raw2[7],
             raw2[8],raw2[9],raw2[10],raw2[11],raw2[12],raw2[13],raw2[14],raw2[15]);
     }
+
+    result = spi_cmd_rsp(cmd);
+    if (result != N_OK) {
+        M2M_ERR("[nmi spi]: Failed cmd response, read reg (%08x)...\n", (unsigned int)addr);
+        nm_spi_cs_deassert();
+        goto _FAIL_;
+    }
+
 
     result = spi_data_read(&tmp[0], 4, clockless);
     M2M_DBG("[DBG data] spi_data_read → %d, buf = %02x %02x %02x %02x\n",

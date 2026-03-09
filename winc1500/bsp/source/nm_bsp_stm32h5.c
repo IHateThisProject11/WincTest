@@ -45,6 +45,7 @@
 #include "stm32h5xx_hal.h"
 //#include "cmsis_os.h"
 #include "conf_winc.h"
+#include "cmsis_os.h"
 
 
 static tpfNmBspIsr gpfIsr;   /* lives only in this file */
@@ -73,11 +74,11 @@ static void init_chip_pins(void)
     HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_RESET);
 
     /* perform a hardware reset pulse */
-    HAL_Delay(50);
+    osDelay(50);
     HAL_GPIO_WritePin(CHIP_EN_WINC_GPIO_Port, CHIP_EN_WINC_Pin, GPIO_PIN_SET);
-    HAL_Delay(50);
+    osDelay(50);
     HAL_GPIO_WritePin(RESET_WINC_GPIO_Port, RESET_WINC_Pin, GPIO_PIN_SET);
-    HAL_Delay(1000);
+    osDelay(1000);
 }
 
 /*
@@ -88,10 +89,11 @@ static void init_chip_pins(void)
 sint8 nm_bsp_init(void)
 {
 	/* Initialize chip IOs. */
-	init_chip_pins();
+	//init_chip_pins();
+    init_chip_pins();
 
 	/* Perform chip reset. */
-	nm_bsp_reset();
+	//nm_bsp_reset();
 
 	return M2M_SUCCESS;
 }
