@@ -307,6 +307,9 @@ static sint8 spi_cmd_rsp(uint8 cmd)
 	sint8 result = N_OK;
 	sint8 s8RetryCnt;
 
+    nm_bsp_sleep(1);   // ← ADD THIS — give WINC time to prepare response
+
+
 	/**
 		Command/Control response
 	**/
@@ -560,13 +563,7 @@ _RETRY_:
         goto _FAIL_;
     }
 
-    {
-        uint8 raw[16] = {0};
-        nmi_spi_read(raw, 16);
-        M2M_ERR("[RAW MISO] %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
-            raw[0],raw[1],raw[2],raw[3],raw[4],raw[5],raw[6],raw[7],
-            raw[8],raw[9],raw[10],raw[11],raw[12],raw[13],raw[14],raw[15]);
-    }
+
 
     result = spi_cmd_rsp(cmd);
     nm_spi_cs_deassert();
@@ -681,13 +678,6 @@ _RETRY_:
         goto _FAIL_;
     }
 
-    {
-        uint8 raw2[16] = {0};
-        nmi_spi_read(raw2, 16);
-        M2M_ERR("[RAW MISO2] %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
-            raw2[0],raw2[1],raw2[2],raw2[3],raw2[4],raw2[5],raw2[6],raw2[7],
-            raw2[8],raw2[9],raw2[10],raw2[11],raw2[12],raw2[13],raw2[14],raw2[15]);
-    }
 
     result = spi_cmd_rsp(cmd);
     if (result != N_OK) {
