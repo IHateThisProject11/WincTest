@@ -31,7 +31,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+extern volatile uint32_t g_irq_exti_fired;
+extern volatile uint32_t g_irq_bsp_isr;
+void nm_bsp_call_isr(void);
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -165,15 +167,13 @@ void DebugMon_Handler(void)
   */
 void EXTI4_IRQHandler(void)
 {
-  /* USER CODE BEGIN EXTI4_IRQn 0 */
-
-  /* USER CODE END EXTI4_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(IRQ_WINC_PIN_Pin);
-  /* USER CODE BEGIN EXTI4_IRQn 1 */
-
-  /* USER CODE END EXTI4_IRQn 1 */
+    if (__HAL_GPIO_EXTI_GET_IT(IRQ_WINC_PIN_Pin)) {
+        __HAL_GPIO_EXTI_CLEAR_IT(IRQ_WINC_PIN_Pin);
+        g_irq_exti_fired++;
+        // Don't call nm_bsp_call_isr here - let WifiTask_Tick handle it
+        // via GPIO polling to avoid the False interrupt race condition
+    }
 }
-
 /**
   * @brief This function handles EXTI Line13 interrupt.
   */

@@ -254,7 +254,7 @@ void StartTask02(void *argument)
 	      t0 = HAL_GetTick();
 	    }
 
-	    osDelay(20);
+	    osDelay(1);
 	  }
 
 
@@ -274,6 +274,7 @@ void StartTask03(void *argument)
   /* USER CODE BEGIN CANLogTask */
 	  printf("CAN: auto-start logger\r\n");
 
+	  osDelay(5000);  // wait for WiFi to connect first, then try SD
 	  osMutexAcquire(g_sdMutex, osWaitForever);
 	  int rc_sd = SDCard_Init();               // 0 = OK
 	  osMutexRelease(g_sdMutex);

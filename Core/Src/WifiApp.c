@@ -54,7 +54,38 @@ void wifi_cb(uint8_t u8MsgType, void *pvMsg)
         break;
     }
 
+//    case M2M_WIFI_RESP_SCAN_DONE:
+//    {
+//        tstrM2mScanDone *pScan = (tstrM2mScanDone*)pvMsg;
+//        printf("Scan done: %d APs found\r\n", pScan->u8NumofCh);
+//        for (uint8_t i = 0; i < pScan->u8NumofCh; i++) {
+//            m2m_wifi_req_scan_result(i);
+//        }
+//        break;
+//    }
 
+    case M2M_WIFI_RESP_SCAN_DONE:
+    {
+        tstrM2mScanDone *pScan = (tstrM2mScanDone*)pvMsg;
+        printf("Scan done: %d APs found\r\n", pScan->u8NumofCh);
+        if (pScan->u8NumofCh == 0) {
+            printf("No APs found, retrying scan...\r\n");
+            m2m_wifi_request_scan(M2M_WIFI_CH_ALL);
+        } else {
+            for (uint8_t i = 0; i < pScan->u8NumofCh; i++) {
+                m2m_wifi_req_scan_result(i);
+            }
+        }
+        break;
+    }
+    case M2M_WIFI_RESP_SCAN_RESULT:
+    {
+        tstrM2mWifiscanResult *pResult = (tstrM2mWifiscanResult*)pvMsg;
+        printf("  AP: SSID=%-32s RSSI=%4d Auth=%d Ch=%d\r\n",
+            pResult->au8SSID, pResult->s8rssi,
+            pResult->u8AuthType, pResult->u8ch);
+        break;
+    }
     default:
         break;
     }
@@ -80,19 +111,22 @@ void WifiApp_InitAP(void)
         Error_Handler();
     }
 
-    sint8 ret = m2m_wifi_connect(
-            MAIN_WLAN_SSID,
-            strlen(MAIN_WLAN_SSID),
-            MAIN_WLAN_AUTH,
-            (void*)MAIN_WLAN_PSK,
-            MAIN_WLAN_CHANNEL);
-    M2M_INFO("m2m_wifi_connect rc=%d\r\n", ret);
+//    sint8 ret = m2m_wifi_connect(
+//            MAIN_WLAN_SSID,
+//            strlen(MAIN_WLAN_SSID),
+//            MAIN_WLAN_AUTH,
+//            (void*)MAIN_WLAN_PSK,
+//            MAIN_WLAN_CHANNEL);
+//    M2M_INFO("m2m_wifi_connect rc=%d\r\n", ret);
+//
+//    if (ret != M2M_SUCCESS) {
+//        M2M_ERR("m2m_wifi_connect error %d\r\n", ret);
+//    } else {
+//        M2M_INFO("Connecting to %s\r\n", MAIN_WLAN_SSID);
+//    }
 
-    if (ret != M2M_SUCCESS) {
-        M2M_ERR("m2m_wifi_connect error %d\r\n", ret);
-    } else {
-        M2M_INFO("Connecting to %s\r\n", MAIN_WLAN_SSID);
-    }
+    M2M_INFO("Starting WiFi scan...\r\n");
+    m2m_wifi_request_scan(M2M_WIFI_CH_ALL);
 }
 
 

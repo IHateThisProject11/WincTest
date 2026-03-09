@@ -277,7 +277,7 @@ sint8 nm_bus_init(void *pvinit)
     SPI_WIFI_HANDLE.Init.NSSPMode          = SPI_NSS_PULSE_DISABLE;
     SPI_WIFI_HANDLE.Init.FifoThreshold     = SPI_FIFO_THRESHOLD_01DATA;
     SPI_WIFI_HANDLE.Init.MasterSSIdleness           = SPI_MASTER_SS_IDLENESS_00CYCLE;
-    SPI_WIFI_HANDLE.Init.MasterInterDataIdleness    = SPI_MASTER_INTERDATA_IDLENESS_02CYCLE; //changed from 00 cycle
+    SPI_WIFI_HANDLE.Init.MasterInterDataIdleness    = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE; //changed from 00 cycle
     SPI_WIFI_HANDLE.Init.MasterReceiverAutoSusp     = SPI_MASTER_RX_AUTOSUSP_DISABLE;
     SPI_WIFI_HANDLE.Init.MasterKeepIOState           = SPI_MASTER_KEEP_IO_STATE_ENABLE; //changed from disable
     SPI_WIFI_HANDLE.Init.IOSwap                      = SPI_IO_SWAP_DISABLE;
