@@ -21,9 +21,11 @@ void WifiTask_Tick(void)
 
     /* TEMPORARY failsafe: if nIRQ is asserted but EXTI didn’t wake us,
        call the BSP ISR from task context so events still flow. */
-    if (HAL_GPIO_ReadPin(IRQ_WINC_PIN_GPIO_Port, IRQ_WINC_PIN_Pin) == GPIO_PIN_RESET) {
+    uint8_t irq_level = HAL_GPIO_ReadPin(IRQ_WINC_PIN_GPIO_Port, IRQ_WINC_PIN_Pin);
+    if (irq_level == GPIO_PIN_RESET) {
+        printf("IRQ LOW! calling isr\r\n");
         nm_bsp_call_isr();
-        g_irq_bsp_isr++;   // we’re servicing it manually
+        g_irq_bsp_isr++;
     }
 
     m2m_wifi_handle_events(NULL);

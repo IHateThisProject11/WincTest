@@ -78,7 +78,7 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t WifiTaskHandle;
 const osThreadAttr_t WifiTask_attributes = {
   .name = "WifiTask",
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 1024 * 4
 };
 /* Definitions for CANLogTask */
@@ -164,16 +164,16 @@ void MX_FREERTOS_Init(void) {
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
   /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+ // defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of WifiTask */
   WifiTaskHandle = osThreadNew(StartTask02, NULL, &WifiTask_attributes);
 
   /* creation of CANLogTask */
-  CANLogTaskHandle = osThreadNew(StartTask03, NULL, &CANLogTask_attributes);
+ // CANLogTaskHandle = osThreadNew(StartTask03, NULL, &CANLogTask_attributes);
 
   /* creation of UploadTask */
-  UploadTaskHandle = osThreadNew(StartTask04, NULL, &UploadTask_attributes);
+//  UploadTaskHandle = osThreadNew(StartTask04, NULL, &UploadTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   printf("thr %-12s = %p  heap=%lu\r\n",

@@ -170,8 +170,8 @@ void EXTI4_IRQHandler(void)
     if (__HAL_GPIO_EXTI_GET_IT(IRQ_WINC_PIN_Pin)) {
         __HAL_GPIO_EXTI_CLEAR_IT(IRQ_WINC_PIN_Pin);
         g_irq_exti_fired++;
-        // Don't call nm_bsp_call_isr here - let WifiTask_Tick handle it
-        // via GPIO polling to avoid the False interrupt race condition
+        nm_bsp_call_isr();
+        g_irq_bsp_isr++;
     }
 }
 /**
