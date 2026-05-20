@@ -317,10 +317,7 @@ void StartTask04(void *argument)
 	  for (;;)
 	   {
 	     // Wait until we have BOTH Wi-Fi IP and a button press (a press before IP still counts)
-	     uint32_t r = osEventFlagsWait(g_sysEvt,
-	                                   EVT_HAS_IP | EVT_BTN_PRESSED,
-	                                   osFlagsWaitAll | osFlagsNoClear,
-	                                   osWaitForever);
+	     uint32_t r = osEventFlagsWait(g_sysEvt, EVT_HAS_IP | EVT_BTN_PRESSED, osFlagsWaitAll | osFlagsNoClear, osWaitForever);
 	     if ((int32_t)r < 0) {
 	       printf("ERR: wait IP+BTN ret=%ld\r\n", (long)(int32_t)r);
 	       osDelay(50);
